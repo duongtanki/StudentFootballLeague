@@ -72,7 +72,7 @@ namespace StudentFootballLeague.API.Controllers
             var reg = await _context.TeamRegistrations
                 .Include(r => r.Tournament)
                 .Include(r => r.Team)
-                    .ThenInclude(t => t.Players)
+                    .ThenInclude(t => t!.Players)
                 .FirstOrDefaultAsync(r => r.RegistrationId == id);
 
             if (reg == null)

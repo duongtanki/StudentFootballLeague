@@ -91,7 +91,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 7. Cấu hình Swagger với JWT Bearer
+// 7. Cấu hình Swagger với JWT Bearer & Xử lý xung đột OData
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -102,13 +102,17 @@ builder.Services.AddSwaggerGen(c =>
         Description = "ASP.NET Core Web API & OData Services cho Quản lý Giải bóng đá Sinh viên - PRN232"
     });
 
+    // Giải quyết xung đột route giữa RESTful và OData
+    c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Nhập JWT Token theo định dạng: Bearer {token}",
+        Description = "Nhập JWT Bearer token theo định dạng: Bearer {token}",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -129,15 +133,13 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Kích hoạt Swagger UI cho mọi môi trường (kể cả khi không đặt ASPNETCORE_ENVIRONMENT)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Student Football League API v1");
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Student Football League API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
