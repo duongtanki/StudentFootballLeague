@@ -1,0 +1,72 @@
+@model IEnumerable<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>
+
+<div class="table-responsive shadow-sm rounded-3">
+    <table class="table table-hover table-striped align-middle mb-0">
+        <thead class="table-dark">
+            <tr class="text-center">
+                <th style="width: 50px;">Hạng</th>
+                <th class="text-start">Đội bóng</th>
+                <th>Trận</th>
+                <th>Thắng</th>
+                <th>Hòa</th>
+                <th>Thua</th>
+                <th>BT</th>
+                <th>BB</th>
+                <th>HS</th>
+                <th>Điểm</th>
+                <th>Fair-play</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                foreach (var team in Model)
+                {
+                    var isTopTwo = team.Rank <= 2;
+                    <tr class="@(isTopTwo ? "table-success" : "") text-center">
+                        <td>
+                            <span class="badge @(isTopTwo ? "bg-success" : "bg-secondary") rounded-pill">
+                                @team.Rank
+                            </span>
+                        </td>
+                        <td class="text-start fw-bold">
+                            @if (!string.IsNullOrEmpty(team.LogoUrl))
+                            {
+                                <img src="@team.LogoUrl" alt="logo" class="me-2 rounded-circle" style="width: 24px; height: 24px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                            }
+                            @team.TeamName
+                            @if (isTopTwo)
+                            {
+                                <small class="text-success ms-1" title="Vào vòng trong"><i class="bi bi-check-circle-fill"></i></small>
+                            }
+                        </td>
+                        <td>@team.MatchesPlayed</td>
+                        <td>@team.Wins</td>
+                        <td>@team.Draws</td>
+                        <td>@team.Losses</td>
+                        <td>@team.GoalsFor</td>
+                        <td>@team.GoalsAgainst</td>
+                        <td class="fw-bold @(team.GoalDifference > 0 ? "text-success" : (team.GoalDifference < 0 ? "text-danger" : ""))">
+                            @(team.GoalDifference > 0 ? $"+{team.GoalDifference}" : team.GoalDifference.ToString())
+                        </td>
+                        <td class="fw-bold fs-6 text-primary">@team.Points</td>
+                        <td>
+                            <span class="badge @(team.FairPlayPoints < 0 ? "bg-warning text-dark" : "bg-light text-muted border")">
+                                @team.FairPlayPoints
+                            </span>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-4">Chưa có dữ liệu bảng xếp hạng.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+<small class="text-muted mt-2 d-block fst-italic">
+    * Ghi chú: BT: Bàn thắng | BB: Bàn thua | HS: Hiệu số bàn thắng bại | Điểm: Thắng 3đ, Hòa 1đ, Thua 0đ | Fair-play: Thẻ vàng (-1), Thẻ đỏ (-3). Màu xanh lá là các đội vào vòng Knockout.
+</small>

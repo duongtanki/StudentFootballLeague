@@ -1,0 +1,109 @@
+@{
+    ViewData["Title"] = "Trang chủ - Giải Bóng Đá Sinh Viên";
+    var activeTour = ViewBag.ActiveTournament as StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto;
+    var matches = ViewBag.Matches as List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>();
+    var topScorers = ViewBag.TopScorers as List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto>();
+}
+
+<!-- Hero Banner -->
+<div class="p-5 mb-4 bg-dark text-white rounded-4 shadow position-relative overflow-hidden" style="background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);">
+    <div class="container-fluid py-3 position-relative" style="z-index: 2;">
+        <span class="badge bg-warning text-dark px-3 py-2 fw-bold text-uppercase mb-3">
+            <i class="bi bi-fire me-1"></i> Giải Đấu Đang Khởi Tranh
+        </span>
+        <h1 class="display-5 fw-bold">@(activeTour?.Name ?? "Giải Bóng Đá Sinh Viên Mở Rộng 2026")</h1>
+        <p class="col-md-8 fs-5 text-light">
+            Sân chơi thể thao cuồng nhiệt dành cho các đội bóng sinh viên. Cập nhật tỷ số trực tiếp, lịch thi đấu, bảng xếp hạng và danh hiệu Vua phá lưới từng phút!
+        </p>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <a asp-controller="Matches" asp-action="Index" class="btn btn-warning btn-lg fw-bold px-4">
+                <i class="bi bi-calendar3 me-1"></i> Xem Lịch Thi Đấu
+            </a>
+            <a asp-controller="Standings" asp-action="Index" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-bar-chart-line me-1"></i> Xem Bảng Xếp Hạng
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột Trái: Trận Đấu Tâm Điểm -->
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-lightning-charge-fill text-warning me-2"></i>Trận Đấu Nổi Bật
+            </h4>
+            <a asp-controller="Matches" asp-action="Index" class="text-decoration-none fw-bold small">
+                Xem tất cả lịch đấu <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        @if (matches.Any())
+        {
+            <div class="row">
+                @foreach (var match in matches)
+                {
+                    <div class="col-md-6 mb-3">
+                        @await Html.PartialAsync("_MatchScoreCardPartial", match)
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm border-0 p-4 text-center text-muted">
+                <i class="bi bi-calendar-x fs-1 mb-2"></i>
+                <p class="mb-0">Chưa có trận đấu nào được lên lịch.</p>
+            </div>
+        }
+    </div>
+
+    <!-- Cột Phải: Top Ghi Bàn & Đăng Ký Đội -->
+    <div class="col-lg-4">
+        <!-- Top Ghi Bàn -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-trophy me-2"></i>Top Ghi Bàn</h5>
+                <span class="badge bg-secondary">Vua Phá Lưới</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    @if (topScorers.Any())
+                    {
+                        foreach (var scorer in topScorers)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge @(scorer.Rank == 1 ? "bg-warning text-dark" : "bg-light text-muted border") rounded-circle me-3" style="width: 28px; height: 28px; line-height: 20px;">
+                                        @scorer.Rank
+                                    </span>
+                                    <div>
+                                        <div class="fw-bold">@scorer.FullName <small class="text-muted">(#@scorer.JerseyNumber)</small></div>
+                                        <small class="text-muted">@scorer.TeamName</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-danger rounded-pill px-3 py-2 fs-6">
+                                    @scorer.GoalsScored <i class="bi bi-bullseye ms-1"></i>
+                                </span>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="list-group-item text-center text-muted py-4">Chưa có thống kê bàn thắng.</li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <!-- Banner Kêu gọi Đăng ký Đội bóng -->
+        <div class="card border-0 rounded-4 shadow-sm text-center p-4" style="background: linear-gradient(180deg, #f8f9fa, #e9ecef);">
+            <div class="fs-1 text-primary mb-2"><i class="bi bi-people-fill"></i></div>
+            <h5 class="fw-bold">Bạn là Đội Trưởng?</h5>
+            <p class="text-muted small">Hãy tạo tài khoản, đăng ký đội hình và nộp hồ sơ tham gia mùa giải ngay hôm nay!</p>
+            <a asp-controller="MyTeam" asp-action="Dashboard" class="btn btn-primary fw-bold">
+                <i class="bi bi-shield-plus me-1"></i> Quản Lý Đội Bóng
+            </a>
+        </div>
+    </div>
+</div>

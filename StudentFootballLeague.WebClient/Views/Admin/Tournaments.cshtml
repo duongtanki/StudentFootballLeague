@@ -1,0 +1,231 @@
+@{
+    ViewData["Title"] = "Quản lý Giải đấu & Duyệt Đội";
+    var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
+    var registrations = ViewBag.Registrations as List<StudentFootballLeague.BusinessLogic.DTOs.TeamRegistrationReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TeamRegistrationReadDto>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-trophy-fill text-warning me-2"></i>Quản Trị Mùa Giải & Xét Duyệt Hồ Sơ</h3>
+        <p class="text-muted mb-0">Dành riêng cho Ban tổ chức điều hành giải đấu bóng đá sinh viên</p>
+    </div>
+    <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#createTournamentModal">
+        <i class="bi bi-plus-circle-fill me-1"></i> Tạo Mùa Giải Mới
+    </button>
+</div>
+
+<!-- Danh Sách Mùa Giải -->
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-header bg-dark text-white py-3 rounded-top-4">
+        <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-list-ul me-2"></i>Danh Sách Mùa Giải (@tournaments.Count)</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr class="text-center">
+                        <th>Mã</th>
+                        <th class="text-start">Tên giải đấu</th>
+                        <th>Kỳ học</th>
+                        <th>Ngày thi đấu</th>
+                        <th>Hạn đăng ký</th>
+                        <th>Quy mô đội</th>
+                        <th>Cầu thủ/Đội</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in tournaments)
+                    {
+                        <tr class="text-center">
+                            <td><span class="badge bg-light text-dark border">#@t.TournamentId</span></td>
+                            <td class="text-start fw-bold">@t.Name</td>
+                            <td><span class="badge bg-primary">@t.Season</span></td>
+                            <td>@t.StartDate.ToString("dd/MM/yyyy") - @t.EndDate.ToString("dd/MM/yyyy")</td>
+                            <td><span class="badge bg-warning text-dark">@t.RegistrationDeadline.ToString("dd/MM/yyyy HH:mm")</span></td>
+                            <td>@t.RegisteredTeamsCount / @t.MaxTeams đội</td>
+                            <td>@t.MinPlayersPerTeam - @t.MaxPlayersPerTeam</td>
+                            <td>
+                                @if (t.Status == "Ongoing")
+                                {
+                                    <span class="badge bg-success">Đang diễn ra</span>
+                                }
+                                else if (t.Status == "Registering")
+                                {
+                                    <span class="badge bg-info text-dark">Mở đăng ký</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@t.Status</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Danh Sách Hồ Sơ Đội Bóng Đăng Ký Chờ Duyệt -->
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-shield-check me-2"></i>Xét Duyệt Hồ Sơ Đăng Ký Đội Bóng (@registrations.Count)</h5>
+        <span class="badge bg-info text-dark">Phân bổ Bảng A / Bảng B</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr class="text-center">
+                        <th class="text-start">Đội bóng</th>
+                        <th>Giải đấu</th>
+                        <th>Bảng đấu</th>
+                        <th>Ngày nộp</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác xét duyệt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (registrations.Any())
+                    {
+                        foreach (var reg in registrations)
+                        {
+                            <tr class="text-center">
+                                <td class="text-start fw-bold">
+                                    @if (!string.IsNullOrEmpty(reg.LogoUrl))
+                                    {
+                                        <img src="@reg.LogoUrl" alt="logo" class="rounded-circle me-2" style="width: 24px; height: 24px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                                    }
+                                    @reg.TeamName
+                                </td>
+                                <td>@reg.TournamentName</td>
+                                <td>
+                                    <span class="badge @(!string.IsNullOrEmpty(reg.GroupName) ? "bg-primary" : "bg-light text-muted border")">
+                                        @(reg.GroupName ?? "Chưa phân bảng")
+                                    </span>
+                                </td>
+                                <td>@reg.RegisteredAt.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    @if (reg.ApprovalStatus == "Approved")
+                                    {
+                                        <span class="badge bg-success">Đã duyệt</span>
+                                    }
+                                    else if (reg.ApprovalStatus == "Pending")
+                                    {
+                                        <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger" title="@reg.RejectReason">Bị từ chối</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (reg.ApprovalStatus == "Pending")
+                                    {
+                                        <form asp-action="ApproveRegistration" method="post" class="d-inline-flex gap-1 align-items-center">
+                                            <input type="hidden" name="id" value="@reg.RegistrationId" />
+                                            <select name="groupName" class="form-select form-select-sm" style="width: 110px;">
+                                                <option value="Group A">Bảng A</option>
+                                                <option value="Group B">Bảng B</option>
+                                            </select>
+                                            <button type="submit" name="status" value="Approved" class="btn btn-success btn-sm fw-bold" title="Phê duyệt">
+                                                <i class="bi bi-check-lg"></i> Duyệt
+                                            </button>
+                                            <button type="submit" name="status" value="Rejected" class="btn btn-outline-danger btn-sm" title="Từ chối">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Đã hoàn tất</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Chưa có hồ sơ đăng ký nào.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tạo Giải Đấu Mới -->
+<div class="modal fade" id="createTournamentModal" tabindex="-1" aria-labelledby="createTournamentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form asp-action="CreateTournament" method="post">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title text-warning fw-bold" id="createTournamentModalLabel"><i class="bi bi-trophy me-2"></i>Tạo Mùa Giải Bóng Đá Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tên giải đấu <span class="text-danger">*</span></label>
+                        <input name="Name" class="form-control" placeholder="Ví dụ: Giải Bóng đá Sinh viên FPT Cup Mùa Xuân 2027" required />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Kỳ/Năm học <span class="text-danger">*</span></label>
+                            <input name="Season" class="form-control" placeholder="Ví dụ: Spring 2027, Fall 2027" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Số đội tối đa tham dự <span class="text-danger">*</span></label>
+                            <select name="MaxTeams" class="form-select" required>
+                                <option value="8" selected>8 đội (2 bảng)</option>
+                                <option value="12">12 đội (3 bảng)</option>
+                                <option value="16">16 đội (4 bảng)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ngày khai mạc <span class="text-danger">*</span></label>
+                            <input name="StartDate" type="date" class="form-control" value="2027-03-01" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Ngày bế mạc <span class="text-danger">*</span></label>
+                            <input name="EndDate" type="date" class="form-control" value="2027-03-31" required />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Hạn chót đăng ký đội <span class="text-danger">*</span></label>
+                            <input name="RegistrationDeadline" type="datetime-local" class="form-control" value="2027-02-25T23:59" required />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold">Tối thiểu cầu thủ</label>
+                            <input name="MinPlayersPerTeam" type="number" class="form-control" value="7" min="7" max="20" required />
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold">Tối đa cầu thủ</label>
+                            <input name="MaxPlayersPerTeam" type="number" class="form-control" value="15" min="7" max="25" required />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Trạng thái giải đấu</label>
+                        <select name="Status" class="form-select">
+                            <option value="Registering" selected>Mở đăng ký (Registering)</option>
+                            <option value="Ongoing">Đang diễn ra (Ongoing)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark"><i class="bi bi-save me-1"></i> Lưu Mùa Giải</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

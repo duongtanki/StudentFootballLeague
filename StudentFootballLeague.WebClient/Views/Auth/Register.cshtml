@@ -1,0 +1,60 @@
+@model StudentFootballLeague.BusinessLogic.DTOs.RegisterRequestDto
+@{
+    ViewData["Title"] = "Đăng ký Đội trưởng";
+}
+
+<div class="row justify-content-center mt-4 mb-5">
+    <div class="col-md-6">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-dark text-white text-center py-4 rounded-top-4">
+                <h4 class="mb-0 fw-bold text-warning"><i class="bi bi-person-plus-fill me-2"></i>ĐĂNG KÝ TÀI KHOẢN ĐỘI TRƯỞNG</h4>
+                <small class="text-white-50">Dành cho Sinh viên đại diện Đội bóng lớp / khoa / CLB</small>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Register" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-bold">Họ và tên Đội trưởng <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="Ví dụ: Nguyễn Văn Hải" required />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                            <input asp-for="StudentCode" class="form-control" placeholder="Ví dụ: HE180001" required />
+                            <span asp-validation-for="StudentCode" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PhoneNumber" class="form-label fw-bold">Số điện thoại liên hệ <span class="text-danger">*</span></label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="0901234567" required />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-bold">Email trường cấp (@@fpt.edu.vn) <span class="text-danger">*</span></label>
+                        <input asp-for="Email" type="email" class="form-control" placeholder="captain@fpt.edu.vn" required />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-bold">Mật khẩu khởi tạo <span class="text-danger">*</span></label>
+                        <input asp-for="Password" type="password" class="form-control" placeholder="Tối thiểu 6 ký tự" required />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark mt-3 shadow-sm">
+                        HOÀN TẤT ĐĂNG KÝ
+                    </button>
+                </form>
+
+                <div class="mt-4 pt-3 border-top text-center">
+                    <span class="text-muted">Đã có tài khoản?</span>
+                    <a asp-action="Login" class="text-decoration-none fw-bold ms-1 text-primary">Đăng nhập</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

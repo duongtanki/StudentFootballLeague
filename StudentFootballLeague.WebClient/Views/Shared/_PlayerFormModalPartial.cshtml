@@ -1,0 +1,60 @@
+@model StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto
+
+<div class="modal fade" id="addPlayerModal" tabindex="-1" aria-labelledby="addPlayerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="MyTeam" asp-action="AddPlayer" method="post">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addPlayerModalLabel"><i class="bi bi-person-plus-fill me-2"></i>Thêm Cầu Thủ Mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="StudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                        <input asp-for="StudentCode" class="form-control" placeholder="Ví dụ: HE180101, HA180004" required />
+                        <span asp-validation-for="StudentCode" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-bold">Họ và tên cầu thủ <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="Ví dụ: Nguyễn Văn Hải" required />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="JerseyNumber" class="form-label fw-bold">Số áo thi đấu (1-99) <span class="text-danger">*</span></label>
+                            <input asp-for="JerseyNumber" type="number" min="1" max="99" class="form-control" placeholder="Số áo" required />
+                            <span asp-validation-for="JerseyNumber" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Position" class="form-label fw-bold">Vị trí thi đấu <span class="text-danger">*</span></label>
+                            <select asp-for="Position" class="form-select" required>
+                                <option value="GK">Thủ môn (GK)</option>
+                                <option value="DF">Hậu vệ (DF)</option>
+                                <option value="MF" selected>Tiền vệ (MF)</option>
+                                <option value="FW">Tiền đạo (FW)</option>
+                            </select>
+                            <span asp-validation-for="Position" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DateOfBirth" class="form-label fw-bold">Ngày sinh <span class="text-danger">*</span></label>
+                        <input asp-for="DateOfBirth" type="date" class="form-control" value="2004-01-01" required />
+                        <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="AvatarUrl" class="form-label fw-bold">Đường dẫn ảnh đại diện / ảnh thẻ</label>
+                        <input asp-for="AvatarUrl" class="form-control" placeholder="https://example.com/avatar.jpg" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Cầu Thủ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

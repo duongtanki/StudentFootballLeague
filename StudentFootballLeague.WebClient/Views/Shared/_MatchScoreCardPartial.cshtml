@@ -1,0 +1,58 @@
+@model StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto
+
+<div class="card shadow-sm mb-3 border-0 rounded-3">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted fw-bold">
+            <i class="bi bi-calendar-event me-1"></i> @Model.RoundName 
+            @if (!string.IsNullOrEmpty(Model.GroupName))
+            {
+                <span class="badge bg-primary ms-1">@Model.GroupName</span>
+            }
+        </small>
+        <match-status status="@Model.Status"></match-status>
+    </div>
+    <div class="card-body p-3">
+        <div class="row align-items-center text-center">
+            <!-- Đội Nhà -->
+            <div class="col-4">
+                <div class="fw-bold text-truncate" title="@Model.HomeTeamName">@Model.HomeTeamName</div>
+                <small class="text-muted d-block">(Chủ nhà)</small>
+            </div>
+
+            <!-- Tỷ số hoặc Giờ thi đấu -->
+            <div class="col-4">
+                @if (Model.Status == "Completed" || Model.Status == "InProgress")
+                {
+                    <div class="fs-3 fw-bold text-danger">
+                        @Model.HomeScore - @Model.AwayScore
+                    </div>
+                    @if (Model.HomePenalty.HasValue && Model.AwayPenalty.HasValue)
+                    {
+                        <small class="text-muted d-block">(Pen: @Model.HomePenalty - @Model.AwayPenalty)</small>
+                    }
+                }
+                else
+                {
+                    <div class="badge bg-light text-dark fs-6 border py-2 px-3">VS</div>
+                }
+                <div class="small text-muted mt-1">
+                    <i class="bi bi-clock me-1"></i>@Model.MatchDateTime.ToString("HH:mm - dd/MM/yyyy")
+                </div>
+            </div>
+
+            <!-- Đội Khách -->
+            <div class="col-4">
+                <div class="fw-bold text-truncate" title="@Model.AwayTeamName">@Model.AwayTeamName</div>
+                <small class="text-muted d-block">(Đội khách)</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted">
+            <i class="bi bi-geo-alt me-1"></i>@Model.PitchName
+        </small>
+        <a asp-controller="Matches" asp-action="Details" asp-route-id="@Model.MatchId" class="btn btn-sm btn-outline-primary">
+            Chi tiết trận <i class="bi bi-chevron-right ms-1"></i>
+        </a>
+    </div>
+</div>

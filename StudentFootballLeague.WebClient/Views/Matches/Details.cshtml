@@ -1,0 +1,166 @@
+@model StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto
+@{
+    ViewData["Title"] = $"Chi tiết trận đấu: {Model.HomeTeamName} vs {Model.AwayTeamName}";
+    var homePlayers = ViewBag.HomePlayers as List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto>();
+    var awayPlayers = ViewBag.AwayPlayers as List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto>();
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Quay lại lịch thi đấu
+    </a>
+</div>
+
+<!-- Header Trận Đấu -->
+<div class="card shadow border-0 rounded-4 mb-4 overflow-hidden">
+    <div class="card-header bg-dark text-white text-center py-3">
+        <span class="badge bg-primary px-3 py-1 mb-2">@Model.TournamentName - @Model.RoundName</span>
+        @if (!string.IsNullOrEmpty(Model.GroupName))
+        {
+            <span class="badge bg-secondary px-2 py-1 mb-2">@Model.GroupName</span>
+        }
+        <div class="small text-white-50">
+            <i class="bi bi-geo-alt me-1"></i>@Model.PitchName | <i class="bi bi-clock me-1"></i>@Model.MatchDateTime.ToString("HH:mm - dd/MM/yyyy")
+            @if (!string.IsNullOrEmpty(Model.RefereeName))
+            {
+                <span> | <i class="bi bi-whistle me-1"></i>Trọng tài: @Model.RefereeName</span>
+            }
+        </div>
+    </div>
+    <div class="card-body p-4 bg-light">
+        <div class="row align-items-center text-center">
+            <!-- Đội Nhà -->
+            <div class="col-5">
+                @if (!string.IsNullOrEmpty(Model.HomeTeamLogo))
+                {
+                    <img src="@Model.HomeTeamLogo" alt="logo" class="mb-2 rounded-circle shadow-sm" style="width: 64px; height: 64px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                }
+                <h4 class="fw-bold mb-0">@Model.HomeTeamName</h4>
+                <span class="badge bg-primary mt-1">Đội nhà</span>
+            </div>
+
+            <!-- Tỷ số & Trạng thái -->
+            <div class="col-2">
+                @if (Model.Status == "Completed" || Model.Status == "InProgress")
+                {
+                    <div class="display-4 fw-bold text-danger">
+                        @Model.HomeScore - @Model.AwayScore
+                    </div>
+                }
+                else
+                {
+                    <div class="badge bg-dark text-white fs-4 py-2 px-3">VS</div>
+                }
+                <div class="mt-2">
+                    <match-status status="@Model.Status"></match-status>
+                </div>
+            </div>
+
+            <!-- Đội Khách -->
+            <div class="col-5">
+                @if (!string.IsNullOrEmpty(Model.AwayTeamLogo))
+                {
+                    <img src="@Model.AwayTeamLogo" alt="logo" class="mb-2 rounded-circle shadow-sm" style="width: 64px; height: 64px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                }
+                <h4 class="fw-bold mb-0">@Model.AwayTeamName</h4>
+                <span class="badge bg-secondary mt-1">Đội khách</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột Trái: Timeline Sự Kiện (Bàn Thắng, Thẻ Phạt) -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-stopwatch text-danger me-2"></i>Diễn Biến Trận Đấu</h5>
+            </div>
+            <div class="card-body p-4">
+                @if (Model.Events != null && Model.Events.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var ev in Model.Events)
+                        {
+                            var isHome = ev.TeamId == Model.HomeTeamId;
+                            <div class="d-flex align-items-center mb-3 p-2 rounded @(isHome ? "bg-light border-start border-4 border-primary" : "bg-light border-end border-4 border-danger")">
+                                <span class="badge bg-dark rounded-pill me-3 px-2 py-1">@ev.Minute'</span>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">
+                                        @if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
+                                        {
+                                            <span class="text-success"><i class="bi bi-futbol"></i> VÀO!</span>
+                                        }
+                                        else if (ev.EventType == "YellowCard")
+                                        {
+                                            <span class="text-warning"><i class="bi bi-square-fill"></i> Thẻ vàng</span>
+                                        }
+                                        else if (ev.EventType == "RedCard")
+                                        {
+                                            <span class="text-danger"><i class="bi bi-square-fill"></i> Thẻ đỏ</span>
+                                        }
+                                        - @ev.PlayerName (#@ev.JerseyNumber)
+                                    </div>
+                                    <small class="text-muted">Đội: @ev.TeamName @(string.IsNullOrEmpty(ev.Description) ? "" : $"• {ev.Description}")</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-journal-x fs-1 mb-2"></i>
+                        <p>Chưa có sự kiện nào được ghi nhận trong trận đấu này.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột Phải: Danh Sách Cầu Thủ 2 Đội -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-people-fill text-primary me-2"></i>Đội Hình Đăng Ký</h5>
+            </div>
+            <div class="card-body p-3">
+                <div class="row">
+                    <!-- Danh sách Đội Nhà -->
+                    <div class="col-6 border-end">
+                        <h6 class="fw-bold text-primary mb-3 text-truncate">@Model.HomeTeamName</h6>
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var p in homePlayers)
+                            {
+                                <li class="py-1 border-bottom small d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <span class="badge bg-light text-dark border me-1">#@p.JerseyNumber</span>
+                                        @p.FullName
+                                    </span>
+                                    <span class="badge bg-secondary">@p.Position</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <!-- Danh sách Đội Khách -->
+                    <div class="col-6">
+                        <h6 class="fw-bold text-danger mb-3 text-truncate">@Model.AwayTeamName</h6>
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var p in awayPlayers)
+                            {
+                                <li class="py-1 border-bottom small d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <span class="badge bg-light text-dark border me-1">#@p.JerseyNumber</span>
+                                        @p.FullName
+                                    </span>
+                                    <span class="badge bg-secondary">@p.Position</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
