@@ -1,112 +1,162 @@
 @{
-    ViewData["Title"] = "Bảng xếp hạng";
+    ViewData["Title"] = "Bảng xếp hạng & Thống kê";
     var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
     var selectedTour = ViewBag.SelectedTournament as StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto;
     var groupA = ViewBag.GroupA as List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>();
     var groupB = ViewBag.GroupB as List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>();
     var topScorers = ViewBag.TopScorers as List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto>();
+
+    var bestFairPlay = groupA.Concat(groupB).OrderByDescending(t => t.FairPlayPoints).ThenByDescending(t => t.Points).FirstOrDefault();
+    var totalYellow = topScorers.Sum(s => s.YellowCards);
+    var totalRed = topScorers.Sum(s => s.RedCards);
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
     <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-bar-chart-line-fill me-2 text-success"></i>Bảng Xếp Hạng & Thống Kê</h3>
-        <p class="text-muted mb-0">Tự động cập nhật điểm số, hiệu số bàn thắng và điểm kỷ luật Fair-play theo thời gian thực</p>
+        <h1 class="apex-display fw-bold mb-1" style="font-size: clamp(2rem, 3.6vw, 2.9rem);">BẢNG XẾP HẠNG &amp; THỐNG KÊ GIẢI ĐẤU</h1>
+        <p class="text-muted mb-0">Tổng hợp điểm số, hiệu số bàn thắng bại, điểm Fair-play và danh sách Chiếc Giày Vàng SFLMS.</p>
     </div>
-    <div>
-        <form method="get" class="d-flex align-items-center">
-            <label class="me-2 fw-bold text-nowrap">Chọn mùa giải:</label>
-            <select name="tournamentId" class="form-select form-select-sm" onchange="this.form.submit()">
-                @foreach (var t in tournaments)
-                {
-                    <option value="@t.TournamentId" selected="@(selectedTour?.TournamentId == t.TournamentId ? "selected" : null)">
-                        @t.Name (@t.Season)
-                    </option>
-                }
-            </select>
-        </form>
-    </div>
+
+    <form method="get" class="d-flex align-items-center gap-2">
+        <label for="tournamentSelect" class="apex-label-caps text-muted mb-0">Mùa giải:</label>
+        <select id="tournamentSelect" name="tournamentId" class="form-select form-select-sm" style="min-width: 260px;" onchange="this.form.submit()">
+            @foreach (var t in tournaments)
+            {
+                <option value="@t.TournamentId" selected="@(selectedTour?.TournamentId == t.TournamentId ? "selected" : null)">
+                    @t.Name (@t.Season)
+                </option>
+            }
+        </select>
+    </form>
 </div>
 
-<div class="row g-4 mb-4">
-    <!-- Bảng A -->
-    <div class="col-lg-6">
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-table me-2"></i>Bảng A (Group A)</h5>
-                <span class="badge bg-primary">Vòng Bảng</span>
-            </div>
-            <div class="card-body p-3">
+<!-- Group Switcher Tabs + Standings Table -->
+<div class="mb-5">
+    <ul class="nav nav-pills gap-2 mb-3" id="groupTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="apex-tab-btn active" id="tab-group-a" data-bs-toggle="pill" data-bs-target="#pane-group-a" type="button" role="tab">
+                Bảng A (Group A)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="apex-tab-btn" id="tab-group-b" data-bs-toggle="pill" data-bs-target="#pane-group-b" type="button" role="tab">
+                Bảng B (Group B)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="pane-group-a" role="tabpanel">
+            <div class="apex-panel p-3">
                 @await Html.PartialAsync("_StandingsTablePartial", groupA)
             </div>
         </div>
-    </div>
-
-    <!-- Bảng B -->
-    <div class="col-lg-6">
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-table me-2"></i>Bảng B (Group B)</h5>
-                <span class="badge bg-primary">Vòng Bảng</span>
-            </div>
-            <div class="card-body p-3">
+        <div class="tab-pane fade" id="pane-group-b" role="tabpanel">
+            <div class="apex-panel p-3">
                 @await Html.PartialAsync("_StandingsTablePartial", groupB)
             </div>
         </div>
     </div>
 </div>
 
-<!-- Top Ghi Bàn Giải Đấu -->
-<div class="card shadow-sm border-0 rounded-4">
-    <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-trophy-fill me-2"></i>Bảng Xếp Hạng Vua Phá Lưới (Top Scorers)</h5>
-        <span class="badge bg-danger">Danh hiệu cá nhân</span>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr class="text-center">
-                        <th style="width: 50px;">Hạng</th>
-                        <th class="text-start">Cầu thủ</th>
-                        <th>MSSV</th>
-                        <th>Số áo</th>
-                        <th>Vị trí</th>
-                        <th class="text-start">Đội bóng</th>
-                        <th>Bàn thắng</th>
-                        <th>Thẻ vàng</th>
-                        <th>Thẻ đỏ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (topScorers.Any())
-                    {
-                        foreach (var s in topScorers)
+<!-- Top Scorers & Fair-Play Telemetry -->
+<div class="apex-section-bar">
+    <h2 class="apex-section-title">
+        <span class="apex-section-accent"></span>
+        <span>Top 10 Vua phá lưới &amp; Thống kê thẻ phạt</span>
+    </h2>
+</div>
+
+<div class="row g-4 align-items-start">
+    <div class="col-lg-8">
+        <div class="apex-panel overflow-hidden">
+            <div class="table-responsive">
+                <table class="table apex-table align-middle mb-0 apex-tabular">
+                    <thead>
+                        <tr class="text-center">
+                            <th style="width: 56px;">Hạng</th>
+                            <th class="text-start">Cầu thủ &amp; MSSV</th>
+                            <th>Số áo</th>
+                            <th>Vị trí</th>
+                            <th class="text-start">Đội bóng</th>
+                            <th style="background: rgba(233, 0, 82, 0.28); color: #ffffff;">Bàn thắng</th>
+                            <th>Thẻ vàng</th>
+                            <th>Thẻ đỏ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (topScorers.Any())
                         {
-                            <tr class="text-center">
-                                <td>
-                                    <span class="badge @(s.Rank == 1 ? "bg-warning text-dark" : (s.Rank <= 3 ? "bg-info text-dark" : "bg-light text-muted border")) rounded-pill">
-                                        @s.Rank
-                                    </span>
-                                </td>
-                                <td class="text-start fw-bold">@s.FullName</td>
-                                <td><code>@s.StudentCode</code></td>
-                                <td><span class="badge bg-light text-dark border">#@s.JerseyNumber</span></td>
-                                <td><span class="badge bg-secondary">@s.Position</span></td>
-                                <td class="text-start">@s.TeamName</td>
-                                <td class="fw-bold fs-6 text-danger">@s.GoalsScored</td>
-                                <td><span class="badge bg-warning text-dark">@s.YellowCards</span></td>
-                                <td><span class="badge bg-danger">@s.RedCards</span></td>
+                            foreach (var s in topScorers)
+                            {
+                                <tr class="text-center">
+                                    <td>
+                                        <span class="apex-display fw-bold fs-5" style="color: @(s.Rank == 1 ? "#fbbf24" : "var(--apex-muted)");">@s.Rank</span>
+                                    </td>
+                                    <td class="text-start">
+                                        <div class="fw-bold text-white">
+                                            @s.FullName
+                                            @if (s.Rank == 1)
+                                            {
+                                                <span class="badge ms-1" style="background: #fbbf24; color: #1c051f; font-size: 0.65rem;">GIÀY VÀNG</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted"><code>@s.StudentCode</code></small>
+                                    </td>
+                                    <td><span class="badge bg-dark border">#@s.JerseyNumber</span></td>
+                                    <td><span class="apex-badge apex-badge--scheduled">@s.Position</span></td>
+                                    <td class="text-start" style="color: var(--apex-mint);">@s.TeamName</td>
+                                    <td style="background: rgba(233, 0, 82, 0.16);">
+                                        <span class="apex-display fw-bold fs-4 text-white">@s.GoalsScored</span>
+                                    </td>
+                                    <td><span class="badge bg-warning text-dark">@s.YellowCards</span></td>
+                                    <td><span class="badge" style="background: var(--apex-crimson); color: #fff;">@s.RedCards</span></td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">Chưa có dữ liệu bàn thắng nào cho mùa giải này.</td>
                             </tr>
                         }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu bàn thắng nào cho giải đấu này.</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fair-Play Sidebar -->
+    <div class="col-lg-4 d-flex flex-column gap-4">
+        <div class="apex-panel p-4">
+            <div class="apex-label-caps mb-1" style="color: var(--apex-mint);">
+                <i class="bi bi-shield-check me-1"></i> Bảng kỷ luật &amp; Fair-Play
+            </div>
+            <h3 class="apex-display fw-bold fs-3 text-white mb-3">ĐỘI HÌNH FAIR-PLAY NHẤT</h3>
+
+            @if (bestFairPlay != null)
+            {
+                <div class="p-3 rounded-2 d-flex justify-content-between align-items-center mb-3" style="background: rgba(0, 228, 118, 0.08); border: 1px solid rgba(0, 228, 118, 0.25);">
+                    <div>
+                        <div class="fw-bold text-white">@bestFairPlay.TeamName</div>
+                        <small style="color: var(--apex-mint);">@bestFairPlay.MatchesPlayed trận đã đấu</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="apex-display fw-bold fs-3 apex-tabular" style="color: var(--apex-mint);">@bestFairPlay.FairPlayPoints đ</div>
+                        <div class="apex-label-caps text-muted" style="font-size: 0.65rem;">Kỷ luật</div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom" style="border-color: var(--apex-border-subtle) !important;">
+                <span class="small text-muted">Thẻ vàng (Top Scorers) (-1đ)</span>
+                <span class="fw-bold text-warning apex-tabular">@totalYellow</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <span class="small text-muted">Thẻ đỏ (Top Scorers) (-3đ)</span>
+                <span class="fw-bold apex-tabular" style="color: var(--apex-crimson);">@totalRed</span>
+            </div>
         </div>
     </div>
 </div>

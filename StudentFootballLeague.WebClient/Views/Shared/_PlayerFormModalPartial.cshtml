@@ -1,34 +1,36 @@
 @model StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto
 
-<div class="modal fade" id="addPlayerModal" tabindex="-1" aria-labelledby="addPlayerModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade apex-modal" id="addPlayerModal" tabindex="-1" aria-labelledby="addPlayerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form asp-controller="MyTeam" asp-action="AddPlayer" method="post">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="addPlayerModalLabel"><i class="bi bi-person-plus-fill me-2"></i>Thêm Cầu Thủ Mới</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title apex-display fw-bold fs-4" id="addPlayerModalLabel">
+                        <i class="bi bi-person-plus-fill me-2" style="color: var(--apex-crimson);"></i>THÊM CẦU THỦ VÀO ĐỘI HÌNH
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label asp-for="StudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                        <label asp-for="StudentCode" class="form-label fw-semibold small apex-label-caps">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
                         <input asp-for="StudentCode" class="form-control" placeholder="Ví dụ: HE180101, HA180004" required />
                         <span asp-validation-for="StudentCode" class="text-danger small"></span>
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="FullName" class="form-label fw-bold">Họ và tên cầu thủ <span class="text-danger">*</span></label>
+                        <label asp-for="FullName" class="form-label fw-semibold small apex-label-caps">Họ và tên cầu thủ <span class="text-danger">*</span></label>
                         <input asp-for="FullName" class="form-control" placeholder="Ví dụ: Nguyễn Văn Hải" required />
                         <span asp-validation-for="FullName" class="text-danger small"></span>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="JerseyNumber" class="form-label fw-bold">Số áo thi đấu (1-99) <span class="text-danger">*</span></label>
-                            <input asp-for="JerseyNumber" type="number" min="1" max="99" class="form-control" placeholder="Số áo" required />
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="JerseyNumber" class="form-label fw-semibold small apex-label-caps">Số áo (1–99) <span class="text-danger">*</span></label>
+                            <input asp-for="JerseyNumber" type="number" min="1" max="99" class="form-control apex-tabular" placeholder="10" required />
                             <span asp-validation-for="JerseyNumber" class="text-danger small"></span>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Position" class="form-label fw-bold">Vị trí thi đấu <span class="text-danger">*</span></label>
+                        <div class="col-md-6">
+                            <label asp-for="Position" class="form-label fw-semibold small apex-label-caps">Vị trí sở trường <span class="text-danger">*</span></label>
                             <select asp-for="Position" class="form-select" required>
                                 <option value="GK">Thủ môn (GK)</option>
                                 <option value="DF">Hậu vệ (DF)</option>
@@ -39,15 +41,15 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="DateOfBirth" class="form-label fw-bold">Ngày sinh <span class="text-danger">*</span></label>
+                    <div class="mb-0">
+                        <label asp-for="DateOfBirth" class="form-label fw-semibold small apex-label-caps">Ngày sinh <span class="text-danger">*</span></label>
                         <input asp-for="DateOfBirth" type="date" class="form-control" value="2004-01-01" required />
                         <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                     </div>
-</div>
+                </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Cầu Thủ</button>
+                    <button type="button" class="btn btn-apex-ghost" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-apex-primary px-4">Lưu cầu thủ</button>
                 </div>
             </form>
         </div>

@@ -1,15 +1,15 @@
 @model IEnumerable<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>
 
-<div class="table-responsive shadow-sm rounded-3">
-    <table class="table table-hover table-striped align-middle mb-0">
-        <thead class="table-dark">
+<div class="table-responsive">
+    <table class="table apex-table align-middle mb-0 apex-tabular">
+        <thead>
             <tr class="text-center">
-                <th style="width: 50px;">Hạng</th>
+                <th style="width: 56px;">Hạng</th>
                 <th class="text-start">Đội bóng</th>
                 <th>Trận</th>
-                <th>Thắng</th>
-                <th>Hòa</th>
-                <th>Thua</th>
+                <th>T</th>
+                <th>H</th>
+                <th>B</th>
                 <th>BT</th>
                 <th>BB</th>
                 <th>HS</th>
@@ -23,32 +23,38 @@
                 foreach (var team in Model)
                 {
                     var isTopTwo = team.Rank <= 2;
-                    <tr class="@(isTopTwo ? "table-success" : "") text-center">
+                    var initials = team.TeamName.Length >= 2 ? team.TeamName.Substring(0, 2).ToUpper() : team.TeamName.ToUpper();
+                    <tr class="@(isTopTwo ? "apex-qualified" : "") text-center">
                         <td>
-                            <span class="badge @(isTopTwo ? "bg-success" : "bg-secondary") rounded-pill">
+                            <span class="apex-display fw-bold fs-5" style="color: @(isTopTwo ? "var(--apex-mint)" : "var(--apex-muted)");">
                                 @team.Rank
                             </span>
                         </td>
-                        <td class="text-start fw-bold">
-                            @team.TeamName
-                            @if (isTopTwo)
-                            {
-                                <small class="text-success ms-1" title="Vào vòng trong"><i class="bi bi-check-circle-fill"></i></small>
-                            }
+                        <td class="text-start">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="apex-crest" style="width: 32px; height: 32px; font-size: 0.78rem; border-radius: 6px;">@initials</span>
+                                <span class="fw-semibold text-white">@team.TeamName</span>
+                                @if (isTopTwo)
+                                {
+                                    <span class="apex-badge apex-badge--live ms-1" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">Knockout</span>
+                                }
+                            </div>
                         </td>
                         <td>@team.MatchesPlayed</td>
-                        <td>@team.Wins</td>
+                        <td style="color: var(--apex-mint);">@team.Wins</td>
                         <td>@team.Draws</td>
                         <td>@team.Losses</td>
                         <td>@team.GoalsFor</td>
                         <td>@team.GoalsAgainst</td>
-                        <td class="fw-bold @(team.GoalDifference > 0 ? "text-success" : (team.GoalDifference < 0 ? "text-danger" : ""))">
+                        <td class="fw-semibold" style="color: @(team.GoalDifference > 0 ? "var(--apex-mint)" : (team.GoalDifference < 0 ? "var(--apex-pink-soft)" : "var(--apex-muted)"))">
                             @(team.GoalDifference > 0 ? $"+{team.GoalDifference}" : team.GoalDifference.ToString())
                         </td>
-                        <td class="fw-bold fs-6 text-primary">@team.Points</td>
                         <td>
-                            <span class="badge @(team.FairPlayPoints < 0 ? "bg-warning text-dark" : "bg-light text-muted border")">
-                                @team.FairPlayPoints
+                            <span class="apex-display fw-bold fs-4" style="color: @(isTopTwo ? "var(--apex-mint)" : "#ffffff");">@team.Points</span>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill px-2 py-1" style="background: rgba(28, 5, 31, 0.8); border: 1px solid var(--apex-border); color: @(team.FairPlayPoints < 0 ? "#fde68a" : "var(--apex-muted)");">
+                                @team.FairPlayPoints đ
                             </span>
                         </td>
                     </tr>
@@ -57,12 +63,13 @@
             else
             {
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">Chưa có dữ liệu bảng xếp hạng.</td>
+                    <td colspan="11" class="text-center text-muted py-4">Chưa có dữ liệu bảng xếp hạng cho bảng đấu này.</td>
                 </tr>
             }
         </tbody>
     </table>
 </div>
-<small class="text-muted mt-2 d-block fst-italic">
-    * Ghi chú: BT: Bàn thắng | BB: Bàn thua | HS: Hiệu số bàn thắng bại | Điểm: Thắng 3đ, Hòa 1đ, Thua 0đ | Fair-play: Thẻ vàng (-1), Thẻ đỏ (-3). Màu xanh lá là các đội vào vòng Knockout.
-</small>
+<div class="p-3 mt-2 rounded-2 small text-muted" style="background: rgba(28, 5, 31, 0.5); border: 1px solid var(--apex-border-subtle);">
+    <strong style="color: var(--apex-pink-soft);">Quy tắc phân định thứ hạng:</strong>
+    Điểm số (Thắng 3đ, Hòa 1đ, Thua 0đ) &rarr; Hiệu số bàn thắng bại (HS) &rarr; Tổng bàn thắng (BT) &rarr; Điểm Fair-play (Thẻ vàng -1đ, Thẻ đỏ -3đ). Viền xanh mint đánh dấu Top 2 vào vòng Bán kết.
+</div>

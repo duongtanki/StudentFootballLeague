@@ -82,11 +82,16 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.HasKey(p => p.PlayerId);
                 entity.Property(p => p.FullName).HasMaxLength(100).IsRequired();
                 entity.Property(p => p.StudentCode).HasMaxLength(20).IsRequired();
-                entity.HasIndex(p => p.StudentCode).IsUnique();
                 entity.Property(p => p.Position).HasMaxLength(20).IsRequired();
 
-                // Cùng 1 đội bóng không được trùng số áo
-                entity.HasIndex(p => new { p.TeamId, p.JerseyNumber }).IsUnique();
+                // Filtered Unique Index: Hỗ trợ xóa mềm (IsActive = 0) mà không khóa StudentCode hoặc số áo
+                entity.HasIndex(p => p.StudentCode)
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+
+                entity.HasIndex(p => new { p.TeamId, p.JerseyNumber })
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
 
                 entity.HasOne(p => p.Team)
                     .WithMany(t => t.Players)
@@ -111,12 +116,12 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.HasOne(r => r.Tournament)
                     .WithMany(t => t.Registrations)
                     .HasForeignKey(r => r.TournamentId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(r => r.Team)
                     .WithMany(t => t.Registrations)
                     .HasForeignKey(r => r.TeamId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // =========================================================
@@ -145,7 +150,7 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.HasOne(m => m.Tournament)
                     .WithMany(t => t.Matches)
                     .HasForeignKey(m => m.TournamentId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(m => m.Referee)
                     .WithMany(u => u.RefereedMatches)

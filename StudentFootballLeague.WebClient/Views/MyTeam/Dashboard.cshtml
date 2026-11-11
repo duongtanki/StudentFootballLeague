@@ -3,32 +3,36 @@
     ViewData["Title"] = "Quản lý Đội bóng của tôi";
     var tournaments = ViewBag.AvailableTournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
 }
+
 @if (Model == null)
 {
-    <!-- Chưa tạo đội bóng -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-md-7">
-            <div class="card shadow-lg border-0 rounded-4">
-                <div class="card-header bg-primary text-white text-center py-4 rounded-top-4">
-                    <h4 class="mb-0 fw-bold"><i class="bi bi-shield-plus me-2"></i>KHỞI TẠO HỒ SƠ ĐỘI BÓNG</h4>
-                    <small class="text-white-50">Bước đầu tiên để đưa đội bóng sinh viên của bạn tham gia giải đấu</small>
+    <div class="row justify-content-center my-4">
+        <div class="col-md-8 col-lg-7">
+            <div class="apex-panel overflow-hidden">
+                <div class="apex-panel-header">
+                    <div>
+                        <div class="apex-label-caps" style="color: var(--apex-mint);">Khởi tạo đội bóng</div>
+                        <h1 class="apex-display fw-bold fs-3 mb-0 text-white">KHỞI TẠO HỒ SƠ ĐỘI BÓNG</h1>
+                    </div>
+                    <i class="bi bi-shield-plus fs-3" style="color: var(--apex-crimson);"></i>
                 </div>
-                <div class="card-body p-4">
+                <div class="p-4">
+                    <p class="small text-muted mb-4">Bước đầu tiên để đưa đội bóng sinh viên của bạn tham gia mùa giải.</p>
                     <form asp-action="CreateTeam" method="post">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Tên đội bóng <span class="text-danger">*</span></label>
+                            <label class="form-label small apex-label-caps">Tên đội bóng <span class="text-danger">*</span></label>
                             <input name="TeamName" class="form-control" placeholder="Ví dụ: FC Kỹ Thuật Phần Mềm K18" required />
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Khoa / Viện / Câu lạc bộ trực thuộc <span class="text-danger">*</span></label>
+                            <label class="form-label small apex-label-caps">Khoa / Viện / CLB trực thuộc <span class="text-danger">*</span></label>
                             <input name="FacultyOrClub" class="form-control" placeholder="Ví dụ: Khoa Kỹ thuật Phần mềm (SE)" required />
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Màu áo thi đấu chính <span class="text-danger">*</span></label>
+                        <div class="mb-4">
+                            <label class="form-label small apex-label-caps">Màu áo thi đấu chính <span class="text-danger">*</span></label>
                             <input name="HomeKitColor" class="form-control" placeholder="Ví dụ: Đỏ - Trắng" required />
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mt-3">
-                            TẠO ĐỘI BÓNG &amp; TIẾP TỤC
+                        <button type="submit" class="btn btn-apex-primary w-100 py-2">
+                            Tạo đội bóng &amp; Tiếp tục
                         </button>
                     </form>
                 </div>
@@ -38,78 +42,117 @@
 }
 else
 {
-    var hasGK = Model.Players != null && Model.Players.Any(p => p.Position == "GK");
-    var totalPlayers = Model.Players?.Count ?? 0;
+    var activePlayers = Model.Players?.Where(p => p.IsActive).OrderBy(p => p.JerseyNumber).ToList() ?? new List<StudentFootballLeague.DataAccess.Entities.Player>();
+    var hasGK = activePlayers.Any(p => p.Position == "GK");
+    var gkCount = activePlayers.Count(p => p.Position == "GK");
+    var dfCount = activePlayers.Count(p => p.Position == "DF");
+    var mfCount = activePlayers.Count(p => p.Position == "MF");
+    var fwCount = activePlayers.Count(p => p.Position == "FW");
+    var totalPlayers = activePlayers.Count;
+    var progressPct = Math.Min(100, (int)Math.Round(totalPlayers * 100.0 / 15));
+    var initials = Model.TeamName.Substring(0, Math.Min(2, Model.TeamName.Length)).ToUpper();
 
-    <!-- Header Thông tin Đội bóng -->
-    <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-body p-4">
-            <div class="row align-items-center">
-                <div class="col-auto">
-                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-3 shadow-sm" style="width: 80px; height: 80px;">
-                        @Model.TeamName.Substring(0, Math.Min(2, Model.TeamName.Length)).ToUpper()
-                    </div>
+    <!-- Team Header Banner -->
+    <section class="apex-hero p-4 mb-4">
+        <div class="row align-items-center g-3 position-relative" style="z-index: 2;">
+            <div class="col-auto">
+                <div class="apex-crest apex-crest--lg">@initials</div>
+            </div>
+            <div class="col">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <h1 class="apex-display fw-bold fs-2 mb-0 text-white">@Model.TeamName</h1>
+                    @if (totalPlayers >= 7 && hasGK)
+                    {
+                        <span class="apex-badge apex-badge--live">Đủ điều kiện thi đấu (@totalPlayers/15)</span>
+                    }
+                    else
+                    {
+                        <span class="apex-badge apex-badge--postponed">Cần bổ sung đội hình (@totalPlayers/15)</span>
+                    }
                 </div>
-                <div class="col">
-                    <h3 class="fw-bold text-dark mb-1">@Model.TeamName</h3>
-                    <p class="text-muted mb-1"><i class="bi bi-building me-1"></i>Trực thuộc: <strong>@Model.FacultyOrClub</strong></p>
-                    <span class="badge bg-light text-dark border me-2"><i class="bi bi-palette me-1"></i>Màu áo: @Model.HomeKitColor</span>
-                    <span class="badge @(totalPlayers >= 7 ? "bg-success" : "bg-warning text-dark")">
-                        <i class="bi bi-people me-1"></i>@totalPlayers Cầu thủ
-                    </span>
-                    <span class="badge @(hasGK ? "bg-success" : "bg-danger")">
-                        <i class="bi bi-shield-check me-1"></i>@(hasGK ? "Đã có Thủ môn (GK)" : "Thiếu Thủ môn (GK)")
-                    </span>
-                </div>
-                <div class="col-auto">
-                    <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#addPlayerModal">
-                        <i class="bi bi-person-plus-fill me-1"></i> Thêm Cầu Thủ
-                    </button>
-                </div>
+                <p class="small text-muted mb-0">
+                    Trực thuộc: <strong class="text-white">@Model.FacultyOrClub</strong>
+                    <span class="mx-2">•</span>
+                    Màu áo: <strong class="text-white">@Model.HomeKitColor</strong>
+                </p>
+            </div>
+            <div class="col-md-auto">
+                <button type="button" class="btn btn-apex-primary px-3 py-2" data-bs-toggle="modal" data-bs-target="#addPlayerModal">
+                    <i class="bi bi-person-plus-fill me-1"></i> Thêm cầu thủ mới
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4 KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Tổng số cầu thủ</div>
+                <div class="apex-kpi-value">@totalPlayers <span class="fs-5 text-muted">/ 15</span></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Thủ môn (GK)</div>
+                <div class="apex-kpi-value" style="color: @(hasGK ? "var(--apex-mint)" : "var(--apex-crimson)");">@gkCount</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Hồ sơ giải đã nộp</div>
+                <div class="apex-kpi-value" style="color: var(--apex-violet-soft);">@(Model.Registrations?.Count ?? 0)</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Hoàn thiện đội hình</div>
+                <div class="apex-kpi-value" style="color: var(--apex-cyan);">@progressPct%</div>
             </div>
         </div>
     </div>
 
-    <!-- Hàng Thông Báo Đăng Ký Giải & Cảnh Báo Quy Định -->
-    <div class="row mb-4">
-        <!-- Đăng ký giải đấu -->
-        <div class="col-lg-6 mb-3 mb-lg-0">
-            <div class="card shadow-sm border-0 rounded-4 h-100">
-                <div class="card-header bg-dark text-white py-3 rounded-top-4">
-                    <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-trophy me-2"></i>Đăng Ký Tham Gia Mùa Giải</h5>
+    <!-- Registration & Rules -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="apex-panel h-100">
+                <div class="apex-panel-header">
+                    <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
+                        <i class="bi bi-trophy me-2" style="color: var(--apex-pink-soft);"></i>HỒ SƠ ĐĂNG KÝ MÙA GIẢI
+                    </h2>
                 </div>
-                <div class="card-body p-4">
+                <div class="p-4">
                     @if (Model.Registrations != null && Model.Registrations.Any())
                     {
-                        <h6 class="fw-bold mb-3">Hồ sơ đã gửi:</h6>
-                        <ul class="list-group list-group-flush mb-3">
+                        <div class="d-flex flex-column gap-2 mb-4">
                             @foreach (var reg in Model.Registrations)
                             {
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div class="p-3 rounded-2 d-flex justify-content-between align-items-center" style="background: var(--apex-lowest); border: 1px solid var(--apex-border-subtle);">
                                     <div>
-                                        <strong>@(reg.Tournament?.Name ?? "Giải bóng đá")</strong>
-                                        <small class="text-muted d-block">Bảng đấu: @(reg.GroupName ?? "Chưa phân bảng")</small>
+                                        <div class="fw-bold text-white">@(reg.Tournament?.Name ?? "Giải bóng đá")</div>
+                                        <small class="text-muted">Bảng đấu: @(reg.GroupName ?? "Chưa phân bảng")</small>
                                     </div>
                                     <div>
                                         @if (reg.ApprovalStatus == "Approved")
                                         {
-                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đã phê duyệt</span>
+                                            <span class="apex-badge apex-badge--live">Đã phê duyệt</span>
                                         }
                                         else if (reg.ApprovalStatus == "Pending")
                                         {
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Chờ BTC duyệt</span>
+                                            <span class="apex-badge apex-badge--postponed">Chờ BTC duyệt</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Bị từ chối: @reg.RejectReason</span>
+                                            <span class="apex-badge apex-badge--cancelled" title="@reg.RejectReason">Từ chối: @reg.RejectReason</span>
                                         }
                                     </div>
-                                </li>
+                                </div>
                             }
-                        </ul>
+                        </div>
                     }
-                    <form asp-action="RegisterTournament" method="post" class="mt-3">
-                        <label class="form-label fw-bold">Chọn giải đấu mở đăng ký:</label>
+
+                    <form asp-action="RegisterTournament" method="post">
+                        <label class="form-label small apex-label-caps">Chọn giải đấu đang mở đăng ký</label>
                         <div class="input-group">
                             <select name="tournamentId" class="form-select" required>
                                 <option value="">-- Chọn giải đấu --</option>
@@ -118,14 +161,14 @@ else
                                     <option value="@t.TournamentId">@t.Name (Hạn: @t.RegistrationDeadline.ToString("dd/MM/yyyy"))</option>
                                 }
                             </select>
-                            <button type="submit" class="btn btn-warning fw-bold text-dark" @(totalPlayers < 7 || !hasGK ? "disabled" : "")>
-                                <i class="bi bi-send-fill me-1"></i> Nộp Hồ Sơ
+                            <button type="submit" class="btn btn-apex-primary px-3" @(totalPlayers < 7 || !hasGK ? "disabled" : "")>
+                                Nộp hồ sơ
                             </button>
                         </div>
                         @if (totalPlayers < 7 || !hasGK)
                         {
-                            <small class="text-danger d-block mt-2">
-                                <i class="bi bi-exclamation-circle me-1"></i>Đội bóng phải có tối thiểu 7 cầu thủ và ít nhất 1 Thủ môn (GK) mới được nộp hồ sơ.
+                            <small class="d-block mt-2" style="color: var(--apex-pink-soft);">
+                                <i class="bi bi-exclamation-circle me-1"></i>Đội bóng cần tối thiểu 7 cầu thủ và ít nhất 1 Thủ môn (GK) trước khi nộp hồ sơ.
                             </small>
                         }
                     </form>
@@ -133,131 +176,100 @@ else
             </div>
         </div>
 
-        <!-- Quy định đăng ký -->
         <div class="col-lg-6">
-            <div class="card shadow-sm border-0 rounded-4 bg-light h-100">
-                <div class="card-header bg-white py-3 rounded-top-4">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle-fill text-primary me-2"></i>Quy Định Điều Lệ Giải</h5>
+            <div class="apex-panel h-100">
+                <div class="apex-panel-header">
+                    <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
+                        <i class="bi bi-journal-check me-2" style="color: var(--apex-mint);"></i>QUY ĐỊNH ĐIỀU LỆ SÂN 7
+                    </h2>
+                    <span class="apex-badge apex-badge--scheduled">FPT VFF 2026</span>
                 </div>
-                <div class="card-body p-4">
-                    <ul class="list-unstyled mb-0 small text-secondary">
-                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Mỗi sinh viên chỉ được phép đăng ký thi đấu cho duy nhất 1 đội bóng trong mùa giải.</li>
-                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Số áo thi đấu từ 1 đến 99 và không được trùng lặp trong cùng một đội bóng.</li>
-                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Đội bóng phải có tối thiểu 7 cầu thủ và tối đa 15 cầu thủ, bao gồm ít nhất 1 Thủ môn (GK).</li>
-                        <li><i class="bi bi-check2 text-success me-2"></i>Sau khi giải đấu bắt đầu hoặc hết hạn đăng ký, danh sách cầu thủ sẽ bị khóa sổ và không thể thay đổi.</li>
+                <div class="p-4">
+                    <ul class="list-unstyled small text-muted d-flex flex-column gap-2 mb-4">
+                        <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Quân số hợp lệ: tối thiểu 7 cầu thủ, tối đa 15 cầu thủ đang hoạt động.</li>
+                        <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Bắt buộc có ít nhất 1 Thủ môn (GK) trong danh sách đăng ký.</li>
+                        <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Số áo từ 1 đến 99, không trùng lặp giữa các cầu thủ đang hoạt động trong đội.</li>
+                        <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Xóa cầu thủ sẽ dùng xóa mềm, bảo toàn lịch sử bàn thắng và thẻ phạt.</li>
                     </ul>
+                    <div class="p-3 rounded-2" style="background: var(--apex-lowest); border: 1px solid var(--apex-border-subtle);">
+                        <div class="d-flex justify-content-between small mb-2">
+                            <span class="apex-label-caps text-muted">Chỉ số hoàn thiện đội hình</span>
+                            <span class="fw-bold apex-tabular" style="color: var(--apex-mint);">@totalPlayers / 15 (@progressPct%)</span>
+                        </div>
+                        <div class="progress" style="height: 8px; background: var(--apex-surface);">
+                            <div class="progress-bar" role="progressbar" style="width: @progressPct%; background: linear-gradient(90deg, var(--apex-violet), var(--apex-mint));"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Danh Sách Cầu Thủ Của Đội -->
-    <div class="card shadow-sm border-0 rounded-4">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-people-fill text-primary me-2"></i>Danh Sách Cầu Thủ (@totalPlayers)</h5>
-            <button type="button" class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addPlayerModal">
-                <i class="bi bi-plus-lg me-1"></i> Thêm cầu thủ
-            </button>
+    <!-- Squad Players Table -->
+    <div class="apex-panel overflow-hidden">
+        <div class="apex-panel-header flex-wrap">
+            <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
+                <i class="bi bi-people-fill me-2" style="color: var(--apex-crimson);"></i>DANH SÁCH ĐỘI HÌNH (@totalPlayers)
+            </h2>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="button" class="apex-tab-btn py-1 px-2 active" onclick="filterSquad('ALL', this)">Tất cả (@totalPlayers)</button>
+                <button type="button" class="apex-tab-btn py-1 px-2" onclick="filterSquad('GK', this)">GK (@gkCount)</button>
+                <button type="button" class="apex-tab-btn py-1 px-2" onclick="filterSquad('DF', this)">DF (@dfCount)</button>
+                <button type="button" class="apex-tab-btn py-1 px-2" onclick="filterSquad('MF', this)">MF (@mfCount)</button>
+                <button type="button" class="apex-tab-btn py-1 px-2" onclick="filterSquad('FW', this)">FW (@fwCount)</button>
+            </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr class="text-center">
-                            <th>Số áo</th>
-                            <th class="text-start">Họ và tên</th>
-                            <th>MSSV</th>
-                            <th>Vị trí</th>
-                            <th>Ngày sinh</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (Model.Players != null && Model.Players.Any())
+
+        <div class="table-responsive">
+            <table class="table apex-table align-middle mb-0 apex-tabular" id="squadTable">
+                <thead>
+                    <tr class="text-center">
+                        <th>Số áo</th>
+                        <th class="text-start">Họ và tên</th>
+                        <th>MSSV</th>
+                        <th>Vị trí</th>
+                        <th>Ngày sinh</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (activePlayers.Any())
+                    {
+                        foreach (var player in activePlayers)
                         {
-                            foreach (var player in Model.Players.OrderBy(p => p.JerseyNumber))
-                            {
-                                var jerseyClass = player.Position switch
-                                {
-                                    "GK" => "bg-warning text-dark border border-warning",
-                                    "DF" => "bg-info text-white",
-                                    "MF" => "bg-success text-white",
-                                    "FW" => "bg-danger text-white",
-                                    _ => "bg-secondary text-white"
-                                };
-                                <tr class="text-center">
-                                    <td>
-                                        <span class="badge rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm @jerseyClass" style="width: 38px; height: 38px; font-size: 0.95rem; font-weight: 700;">#@player.JerseyNumber</span>
-                                    </td>
-                                    <td class="text-start fw-bold">@player.FullName</td>
-                                    <td><code>@player.StudentCode</code></td>
-                                    <td>
-                                        @if (player.Position == "GK")
-                                        {
-                                            <span class="badge bg-warning text-dark">Thủ môn (GK)</span>
-                                        }
-                                        else if (player.Position == "DF")
-                                        {
-                                            <span class="badge bg-info text-dark">Hậu vệ (DF)</span>
-                                        }
-                                        else if (player.Position == "MF")
-                                        {
-                                            <span class="badge bg-primary">Tiền vệ (MF)</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-danger">Tiền đạo (FW)</span>
-                                        }
-                                    </td>
-                                    <td>@player.DateOfBirth.ToString("dd/MM/yyyy")</td>
-                                    <td>
-                                        @if (player.IsActive)
-                                        {
-                                            <span class="badge bg-success">Đủ điều kiện</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-secondary">Tạm ngưng</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <button type="button"
-                                                class="btn btn-outline-primary btn-sm me-1 btn-edit-player"
-                                                title="Chỉnh sửa cầu thủ"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editPlayerModal"
-                                                data-player-id="@player.PlayerId"
-                                                data-student-code="@player.StudentCode"
-                                                data-full-name="@player.FullName"
-                                                data-jersey-number="@player.JerseyNumber"
-                                                data-position="@player.Position"
-                                                data-dob="@player.DateOfBirth.ToString("yyyy-MM-dd")"
-                                                data-is-active="@player.IsActive.ToString().ToLower()">
-                                            <i class="bi bi-pencil-square"></i>
+                            <tr class="text-center squad-row" data-pos="@player.Position">
+                                <td>
+                                    <span class="apex-crest mx-auto" style="width: 36px; height: 36px; font-size: 0.95rem; background: @(player.Position == "GK" ? "var(--apex-crimson)" : "var(--apex-high)");">
+                                        #@player.JerseyNumber
+                                    </span>
+                                </td>
+                                <td class="text-start fw-bold text-white">@player.FullName</td>
+                                <td><code>@player.StudentCode</code></td>
+                                <td><span class="apex-badge apex-badge--scheduled">@player.Position</span></td>
+                                <td>@player.DateOfBirth.ToString("dd/MM/yyyy")</td>
+                                <td><span class="apex-badge apex-badge--live">Sẵn sàng</span></td>
+                                <td>
+                                    <form asp-action="DeletePlayer" asp-route-id="@player.PlayerId" method="post" onsubmit="return confirm('Xóa cầu thủ @player.FullName khỏi danh sách đội hiện tại?');" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa cầu thủ">
+                                            <i class="bi bi-trash"></i>
                                         </button>
-                                        <form asp-action="DeletePlayer" asp-route-id="@player.PlayerId" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn xóa cầu thủ này khỏi đội bóng?');" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Xóa cầu thủ">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Chưa có cầu thủ nào. Hãy bấm nút "Thêm Cầu Thủ" ở trên để tạo danh sách!</td>
+                                    </form>
+                                </td>
                             </tr>
                         }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">Chưa có cầu thủ nào. Nhấn "Thêm cầu thủ mới" để tạo danh sách!</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Render PartialView Modal Form Thêm Cầu Thủ -->
     @await Html.PartialAsync("_PlayerFormModalPartial", new StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto())
 
     <!-- Modal Chỉnh Sửa Cầu Thủ -->
@@ -333,5 +345,17 @@ else
                 });
             });
         });
+    </script>
+}
+
+@section Scripts {
+    <script>
+        function filterSquad(pos, btn) {
+            document.querySelectorAll('#squadTable .squad-row').forEach(function (row) {
+                row.style.display = (pos === 'ALL' || row.getAttribute('data-pos') === pos) ? '' : 'none';
+            });
+            btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+        }
     </script>
 }
