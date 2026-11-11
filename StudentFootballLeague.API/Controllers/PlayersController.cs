@@ -136,6 +136,17 @@ namespace StudentFootballLeague.API.Controllers
                 return Forbid();
             }
 
+            // Kiểm tra MSSV trùng lặp nếu sửa MSSV
+            if (!string.Equals(player.StudentCode, dto.StudentCode, StringComparison.OrdinalIgnoreCase))
+            {
+                var existingCode = await _context.Players
+                    .AnyAsync(p => p.StudentCode == dto.StudentCode && p.PlayerId != id);
+                if (existingCode)
+                {
+                    return BadRequest(new { message = $"Cầu thủ có MSSV '{dto.StudentCode}' đã được đăng ký trong hệ thống." });
+                }
+            }
+
             // Kiểm tra số áo trùng lặp nếu sửa số áo
             if (player.JerseyNumber != dto.JerseyNumber)
             {
@@ -147,6 +158,7 @@ namespace StudentFootballLeague.API.Controllers
                 }
             }
 
+            player.StudentCode = dto.StudentCode;
             player.FullName = dto.FullName;
             player.DateOfBirth = dto.DateOfBirth;
             player.JerseyNumber = dto.JerseyNumber;

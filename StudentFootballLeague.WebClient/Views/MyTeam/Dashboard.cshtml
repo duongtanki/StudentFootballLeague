@@ -212,6 +212,20 @@ else
                                         <span class="badge bg-success">ƒê·ªß ƒëi·ªÅu ki·ªán</span>
                                     </td>
                                     <td>
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm me-1 btn-edit-player"
+                                                title="Ch?nh s?a c?u th?"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editPlayerModal"
+                                                data-player-id="@player.PlayerId"
+                                                data-student-code="@player.StudentCode"
+                                                data-full-name="@player.FullName"
+                                                data-jersey-number="@player.JerseyNumber"
+                                                data-position="@player.Position"
+                                                data-dob="@player.DateOfBirth.ToString("yyyy-MM-dd")"
+                                                data-is-active="@player.IsActive.ToString().ToLower()">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
                                         <form asp-action="DeletePlayer" asp-route-id="@player.PlayerId" method="post" onsubmit="return confirm('B·∫°n c√≥ ch·∫Øc ch·∫Øn mu·ªën x√≥a c·∫ßu th·ªß n√†y kh·ªèi ƒë·ªôi b√≥ng?');" class="d-inline">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="X√≥a c·∫ßu th·ªß">
                                                 <i class="bi bi-trash"></i>
@@ -234,4 +248,79 @@ else
     </div>
     <!-- Render PartialView Modal Form Th√™m C·∫ßu Th·ªß -->
     @await Html.PartialAsync("_PlayerFormModalPartial", new StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto())
+
+    <!-- Modal Ch?nh S?a C?u Th? -->
+    <div class="modal fade" id="editPlayerModal" tabindex="-1" aria-labelledby="editPlayerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-controller="MyTeam" asp-action="EditPlayer" method="post">
+                    <input type="hidden" id="editPlayerId" name="id" />
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="editPlayerModalLabel"><i class="bi bi-pencil-square me-2"></i>Ch?nh S?a ThÙng Tin C?u Th?</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editStudentCode" class="form-label fw-bold">M„ s? sinh viÍn (MSSV) <span class="text-danger">*</span></label>
+                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="VÌ d?: HE180101" pattern="^[A-Z]{2}\d{6}$" required />
+                            <small class="text-muted">–?nh d?ng g?m 2 ch? c·i vi?t hoa v‡ 6 ch? s? (VD: HE180101)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editFullName" class="form-label fw-bold">H? v‡ tÍn c?u th? <span class="text-danger">*</span></label>
+                            <input type="text" id="editFullName" name="FullName" class="form-control" maxlength="100" required />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editJerseyNumber" class="form-label fw-bold">S? ·o thi d?u (1-99) <span class="text-danger">*</span></label>
+                                <input type="number" id="editJerseyNumber" name="JerseyNumber" min="1" max="99" class="form-control" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editPosition" class="form-label fw-bold">V? trÌ thi d?u <span class="text-danger">*</span></label>
+                                <select id="editPosition" name="Position" class="form-select" required>
+                                    <option value="GK">Th? mÙn (GK)</option>
+                                    <option value="DF">H?u v? (DF)</option>
+                                    <option value="MF">Ti?n v? (MF)</option>
+                                    <option value="FW">Ti?n d?o (FW)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editDateOfBirth" class="form-label fw-bold">Ng‡y sinh <span class="text-danger">*</span></label>
+                            <input type="date" id="editDateOfBirth" name="DateOfBirth" class="form-control" required />
+                        </div>
+
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive" value="true" checked />
+                            <input type="hidden" name="IsActive" value="false" />
+                            <label class="form-check-label fw-bold" for="editIsActive">–? di?u ki?n thi d?u (–ang ho?t d?ng)</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">H?y</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Luu Thay –?i</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const editButtons = document.querySelectorAll('.btn-edit-player');
+            editButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    document.getElementById('editPlayerId').value = this.dataset.playerId;
+                    document.getElementById('editStudentCode').value = this.dataset.studentCode;
+                    document.getElementById('editFullName').value = this.dataset.fullName;
+                    document.getElementById('editJerseyNumber').value = this.dataset.jerseyNumber;
+                    document.getElementById('editPosition').value = this.dataset.position;
+                    document.getElementById('editDateOfBirth').value = this.dataset.dob;
+                    document.getElementById('editIsActive').checked = this.dataset.isActive === 'true';
+                });
+            });
+        });
+    </script>
 }

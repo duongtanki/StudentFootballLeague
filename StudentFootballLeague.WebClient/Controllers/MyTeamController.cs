@@ -79,6 +79,28 @@ namespace StudentFootballLeague.WebClient.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> EditPlayer(int id, PlayerUpdateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Dữ liệu cầu thủ không hợp lệ. Vui lòng kiểm tra lại MSSV (VD: HE180101), số áo và vị trí.";
+                return RedirectToAction(nameof(Dashboard));
+            }
+
+            var result = await _apiClient.PutAsync($"api/players/{id}", dto);
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] = result.ErrorMessage ?? "Không thể cập nhật thông tin cầu thủ.";
+            }
+            else
+            {
+                TempData["Success"] = $"Cập nhật thông tin cầu thủ {dto.FullName} (Số áo: {dto.JerseyNumber}) thành công!";
+            }
+
+            return RedirectToAction(nameof(Dashboard));
+        }
+
+        [HttpPost]
         public async Task<IActionResult> DeletePlayer(int id)
         {
             var result = await _apiClient.DeleteAsync($"api/players/{id}");
