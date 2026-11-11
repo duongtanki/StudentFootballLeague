@@ -32,7 +32,7 @@
                         <td class="text-start fw-bold">
                             @if (!string.IsNullOrEmpty(team.LogoUrl))
                             {
-                                <img src="@team.LogoUrl" alt="logo" class="me-2 rounded-circle" style="width: 24px; height: 24px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                                <img src="@team.LogoUrl" alt="logo" class="me-2 rounded-circle" style="width: 24px; height: 24px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
                             }
                             @team.TeamName
                             @if (isTopTwo)

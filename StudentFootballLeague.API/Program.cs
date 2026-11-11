@@ -43,6 +43,11 @@ static IEdmModel GetEdmModel()
 
 // 4. Cấu hình Controllers + OData v8
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    })
     .AddOData(opt => opt
         .Select()
         .Filter()

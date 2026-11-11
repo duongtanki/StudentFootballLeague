@@ -199,5 +199,21 @@ namespace StudentFootballLeague.WebClient.Controllers
 
             return RedirectToAction(nameof(Matches));
         }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteMatchEvent(int matchId, int eventId)
+        {
+            var result = await _apiClient.DeleteAsync($"api/matches/{matchId}/events/{eventId}");
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] = result.ErrorMessage ?? "Xóa sự kiện thất bại.";
+            }
+            else
+            {
+                TempData["Success"] = "Đã xóa sự kiện thành công! Tỷ số và Bảng xếp hạng đã được cập nhật lại.";
+            }
+
+            return RedirectToAction(nameof(Matches));
+        }
     }
 }

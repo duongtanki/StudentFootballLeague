@@ -20,8 +20,9 @@
 
 <!-- Danh Sách Các Trận Đấu -->
 <div class="card shadow-sm border-0 rounded-4">
-    <div class="card-header bg-dark text-white py-3 rounded-top-4">
+    <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-table me-2"></i>Danh Sách Trận Đấu (@matches.Count)</h5>
+        <span class="badge bg-secondary">Dành cho Ban tổ chức & Trọng tài</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -49,13 +50,29 @@
                                     <small class="badge bg-secondary">@(m.GroupName ?? "Vòng loại")</small>
                                 </td>
                                 <td class="text-start">
-                                    <div class="fw-bold text-primary">@m.HomeTeamName</div>
-                                    <div class="text-muted small">vs</div>
-                                    <div class="fw-bold text-danger">@m.AwayTeamName</div>
+                                    <div class="fw-bold text-primary">
+                                        @if (!string.IsNullOrEmpty(m.HomeTeamLogo))
+                                        {
+                                            <img src="@m.HomeTeamLogo" class="rounded-circle me-1" style="width: 20px; height: 20px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
+                                        }
+                                        @m.HomeTeamName
+                                    </div>
+                                    <div class="text-muted small ps-4">vs</div>
+                                    <div class="fw-bold text-danger">
+                                        @if (!string.IsNullOrEmpty(m.AwayTeamLogo))
+                                        {
+                                            <img src="@m.AwayTeamLogo" class="rounded-circle me-1" style="width: 20px; height: 20px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
+                                        }
+                                        @m.AwayTeamName
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="small fw-bold">@m.MatchDateTime.ToString("HH:mm - dd/MM/yyyy")</div>
                                     <small class="text-muted"><i class="bi bi-geo-alt"></i> @m.PitchName</small>
+                                    @if (!string.IsNullOrEmpty(m.RefereeName))
+                                    {
+                                        <div class="small text-info"><i class="bi bi-person-badge"></i> TT: @m.RefereeName</div>
+                                    }
                                 </td>
                                 <td>
                                     @if (m.Status == "Completed" || m.Status == "InProgress")
@@ -73,14 +90,18 @@
                                 <td>
                                     <div class="d-flex justify-content-center gap-1">
                                         <!-- Nút Mở Modal Cập nhật Tỷ số -->
-                                        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật tỷ số">
+                                        <button type="button" class="btn btn-sm btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật tỷ số">
                                             <i class="bi bi-pencil-square"></i> Tỷ số
                                         </button>
-                                        <!-- Nút Mở Modal Thêm Sự Kiện -->
-                                        <button type="button" class="btn btn-sm btn-outline-warning text-dark" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Thêm bàn thắng/thẻ phạt">
-                                            <i class="bi bi-plus-circle"></i> Sự kiện
+                                        <!-- Nút Mở Modal Quản lý Sự kiện -->
+                                        <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold position-relative" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Thêm / Xóa sự kiện bàn thắng & thẻ phạt">
+                                            <i class="bi bi-flag-fill"></i> Sự kiện
+                                            @if (m.Events != null && m.Events.Any())
+                                            {
+                                                <span class="badge bg-danger rounded-pill ms-1">@m.Events.Count</span>
+                                            }
                                         </button>
-                                        <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="btn btn-sm btn-outline-primary" title="Xem chi tiết">
+                                        <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="btn btn-sm btn-outline-primary" title="Xem chi tiết & danh sách cầu thủ" target="_blank">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                     </div>
@@ -92,12 +113,12 @@
                                                 <form asp-action="UpdateResult" method="post">
                                                     <input type="hidden" name="matchId" value="@m.MatchId" />
                                                     <div class="modal-header bg-success text-white">
-                                                        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Cập Nhật Kết Quả Trận Đấu</h5>
+                                                        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Cập Nhật Kết Quả Trận Đấu #@m.MatchId</h5>
                                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="p-3 bg-light rounded text-center mb-3">
-                                                            <strong>@m.HomeTeamName</strong> vs <strong>@m.AwayTeamName</strong>
+                                                            <strong class="text-primary">@m.HomeTeamName</strong> vs <strong class="text-danger">@m.AwayTeamName</strong>
                                                         </div>
                                                         <div class="row mb-3">
                                                             <div class="col-6">
@@ -127,17 +148,89 @@
                                         </div>
                                     </div>
 
-                                    <!-- Modal Ghi nhận Sự kiện cho từng trận -->
+                                    <!-- Modal Quản lý Sự kiện (Xem, Xóa & Thêm mới) cho từng trận -->
                                     <div class="modal fade" id="eventModal-@m.MatchId" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-dialog modal-dialog-centered modal-lg">
                                             <div class="modal-content text-start">
-                                                <form asp-action="AddMatchEvent" method="post">
-                                                    <input type="hidden" name="matchId" value="@m.MatchId" />
-                                                    <div class="modal-header bg-warning text-dark">
-                                                        <h5 class="modal-title fw-bold"><i class="bi bi-flag-fill me-2"></i>Ghi Nhận Sự Kiện Trên Sân</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                <div class="modal-header bg-warning text-dark">
+                                                    <h5 class="modal-title fw-bold"><i class="bi bi-flag-fill me-2"></i>Quản Lý Sự Kiện Trận Đấu #@m.MatchId (@m.HomeTeamName vs @m.AwayTeamName)</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <!-- DANH SÁCH SỰ KIỆN ĐÃ GHI NHẬN & NÚT XÓA -->
+                                                    <div class="mb-4">
+                                                        <h6 class="fw-bold border-bottom pb-2 text-dark d-flex justify-content-between align-items-center">
+                                                            <span><i class="bi bi-clock-history me-1 text-primary"></i>Các sự kiện đã ghi nhận (@(m.Events?.Count ?? 0))</span>
+                                                            <small class="text-muted fw-normal">Trọng tài / Admin có thể xóa sự kiện nếu nhập nhầm</small>
+                                                        </h6>
+                                                        @if (m.Events != null && m.Events.Any())
+                                                        {
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-bordered align-middle mb-0">
+                                                                    <thead class="table-light text-center small">
+                                                                        <tr>
+                                                                            <th style="width: 60px;">Phút</th>
+                                                                            <th style="width: 140px;">Sự kiện</th>
+                                                                            <th>Cầu thủ & Đội bóng</th>
+                                                                            <th>Ghi chú</th>
+                                                                            <th style="width: 70px;">Thao tác</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        @foreach (var ev in m.Events.OrderBy(e => e.Minute))
+                                                                        {
+                                                                            <tr>
+                                                                                <td class="text-center fw-bold text-primary">@ev.Minute'</td>
+                                                                                <td class="text-center">
+                                                                                    @if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
+                                                                                    {
+                                                                                        <span class="badge bg-success">⚽ Bàn thắng</span>
+                                                                                    }
+                                                                                    else if (ev.EventType == "YellowCard")
+                                                                                    {
+                                                                                        <span class="badge bg-warning text-dark">🟨 Thẻ vàng</span>
+                                                                                    }
+                                                                                    else if (ev.EventType == "RedCard")
+                                                                                    {
+                                                                                        <span class="badge bg-danger">🟥 Thẻ đỏ</span>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <span class="badge bg-secondary">@ev.EventType</span>
+                                                                                    }
+                                                                                </td>
+                                                                                <td class="small">
+                                                                                    <span class="fw-bold text-dark">@ev.PlayerName (#@ev.JerseyNumber)</span>
+                                                                                    <div class="text-muted small">@ev.TeamName</div>
+                                                                                </td>
+                                                                                <td class="small text-muted">
+                                                                                    @(string.IsNullOrEmpty(ev.Description) ? "-" : ev.Description)
+                                                                                </td>
+                                                                                <td class="text-center">
+                                                                                    <form asp-action="DeleteMatchEvent" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn xóa sự kiện này? Nếu là bàn thắng, tỷ số trận đấu sẽ tự động giảm.');">
+                                                                                        <input type="hidden" name="matchId" value="@m.MatchId" />
+                                                                                        <input type="hidden" name="eventId" value="@ev.EventId" />
+                                                                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2 fw-bold" title="Xóa sự kiện này">
+                                                                                            <i class="bi bi-trash"></i> Xóa
+                                                                                        </button>
+                                                                                    </form>
+                                                                                </td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="text-muted small fst-italic py-2 bg-light rounded text-center">Chưa có sự kiện bàn thắng hoặc thẻ phạt nào được ghi nhận cho trận này.</div>
+                                                        }
                                                     </div>
-                                                    <div class="modal-body">
+
+                                                    <!-- FORM THÊM SỰ KIỆN MỚI -->
+                                                    <h6 class="fw-bold border-bottom pb-2 text-dark"><i class="bi bi-plus-circle-fill text-warning me-1"></i>Ghi nhận thêm sự kiện mới</h6>
+                                                    <form asp-action="AddMatchEvent" method="post">
+                                                        <input type="hidden" name="matchId" value="@m.MatchId" />
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Chọn đội bóng phát sinh sự kiện</label>
                                                             <select name="teamId" class="form-select" required>
@@ -161,20 +254,29 @@
                                                             </div>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label class="form-label fw-bold">Mã số ID cầu thủ (PlayerId)</label>
+                                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                <label class="form-label fw-bold mb-0">Mã số ID cầu thủ (PlayerId) <span class="text-danger">*</span></label>
+                                                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" target="_blank" class="small text-decoration-none">
+                                                                    <i class="bi bi-person-lines-fill me-1"></i>Xem ID danh sách cầu thủ
+                                                                </a>
+                                                            </div>
                                                             <input type="number" name="playerId" class="form-control" placeholder="Ví dụ: 4 (Quang Hải)" value="4" required />
-                                                            <small class="text-muted">Nhập mã PlayerId của cầu thủ thực hiện ghi bàn hoặc nhận thẻ.</small>
+                                                            <small class="text-muted">Nhập mã PlayerId của cầu thủ thực hiện ghi bàn hoặc nhận thẻ phạt.</small>
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Mô tả chi tiết</label>
                                                             <input type="text" name="description" class="form-control" placeholder="Ví dụ: Sút xa đẹp mắt, Phạm lỗi ngăn phản công..." />
                                                         </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                                        <button type="submit" class="btn btn-warning fw-bold text-dark">Ghi Nhận Sự Kiện</button>
-                                                    </div>
-                                                </form>
+                                                        <div class="text-end">
+                                                            <button type="submit" class="btn btn-warning fw-bold text-dark">
+                                                                <i class="bi bi-plus-lg me-1"></i> Thêm Sự Kiện Vào Trận
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -207,13 +309,17 @@
                     </div>
                     <div class="modal-body p-4">
                         <div class="alert alert-info small py-2 mb-3">
-                            <i class="bi bi-info-circle me-1"></i><strong>Kiểm tra tự động:</strong> Hệ thống sẽ tự động chặn việc trùng sân thi đấu hoặc trùng lịch 2 đội bóng trong khoảng thời gian ±90 phút.
+                            <i class="bi bi-info-circle me-1"></i><strong>Kiểm tra tự động:</strong> Hệ thống tự động chặn việc trùng sân thi đấu hoặc trùng lịch 2 đội bóng trong khoảng thời gian ±90 phút.
+                        </div>
+
+                        <div id="noTeamsWarning" class="alert alert-warning small py-2 mb-3 d-none">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Cảnh báo:</strong> Mùa giải được chọn hiện chưa có đội bóng nào được phê duyệt (Approved). Vui lòng vào mục <a asp-action="Tournaments" class="fw-bold">Quản lý Giải & Duyệt Đội</a> để xét duyệt đội trước khi lập lịch.
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Mùa giải <span class="text-danger">*</span></label>
-                                <select name="TournamentId" class="form-select" required>
+                                <select name="TournamentId" id="scheduleTournamentId" class="form-select" required onchange="filterTeamsByTournament()">
                                     @foreach (var t in tournaments)
                                     {
                                         <option value="@t.TournamentId">@t.Name (@t.Season)</option>
@@ -222,7 +328,7 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label fw-bold">Bảng đấu</label>
-                                <select name="GroupName" class="form-select">
+                                <select name="GroupName" id="scheduleGroupName" class="form-select">
                                     <option value="Group A">Bảng A</option>
                                     <option value="Group B">Bảng B</option>
                                     <option value="">Vòng Knockout</option>
@@ -237,19 +343,25 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Đội chủ nhà (Home Team) <span class="text-danger">*</span></label>
-                                <select name="HomeTeamId" class="form-select" required>
+                                <select name="HomeTeamId" id="scheduleHomeTeamId" class="form-select" required>
+                                    <option value="">-- Chọn Đội Chủ Nhà --</option>
                                     @foreach (var team in approvedTeams)
                                     {
-                                        <option value="@team.TeamId">@team.TeamName (@(team.GroupName ?? "Bảng"))</option>
+                                        <option value="@team.TeamId" data-tournament="@team.TournamentId" data-group="@team.GroupName">
+                                            @team.TeamName (@(team.GroupName ?? "Chưa phân bảng"))
+                                        </option>
                                     }
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Đội khách (Away Team) <span class="text-danger">*</span></label>
-                                <select name="AwayTeamId" class="form-select" required>
+                                <select name="AwayTeamId" id="scheduleAwayTeamId" class="form-select" required>
+                                    <option value="">-- Chọn Đội Khách --</option>
                                     @foreach (var team in approvedTeams)
                                     {
-                                        <option value="@team.TeamId">@team.TeamName (@(team.GroupName ?? "Bảng"))</option>
+                                        <option value="@team.TeamId" data-tournament="@team.TournamentId" data-group="@team.GroupName">
+                                            @team.TeamName (@(team.GroupName ?? "Chưa phân bảng"))
+                                        </option>
                                     }
                                 </select>
                             </div>
@@ -258,7 +370,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Ngày giờ thi đấu <span class="text-danger">*</span></label>
-                                <input name="MatchDateTime" type="datetime-local" class="form-control" value="2026-11-10T15:30" required />
+                                <input name="MatchDateTime" type="datetime-local" class="form-control" value="2026-11-12T15:30" required />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Sân thi đấu <span class="text-danger">*</span></label>
@@ -278,4 +390,59 @@
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+    <script>
+        function filterTeamsByTournament() {
+            var tournamentSelect = document.getElementById('scheduleTournamentId');
+            if (!tournamentSelect) return;
+            var tournamentId = tournamentSelect.value;
+            var homeSelect = document.getElementById('scheduleHomeTeamId');
+            var awaySelect = document.getElementById('scheduleAwayTeamId');
+            var warningAlert = document.getElementById('noTeamsWarning');
+
+            var count = 0;
+            function updateSelect(select) {
+                var selectedVal = select.value;
+                var hasValid = false;
+                for (var i = 0; i < select.options.length; i++) {
+                    var opt = select.options[i];
+                    if (!opt.value) continue;
+                    var tId = opt.getAttribute('data-tournament');
+                    if (tId === tournamentId) {
+                        opt.style.display = '';
+                        opt.disabled = false;
+                        count++;
+                        if (opt.value === selectedVal) hasValid = true;
+                    } else {
+                        opt.style.display = 'none';
+                        opt.disabled = true;
+                    }
+                }
+                if (!hasValid) {
+                    select.value = '';
+                }
+            }
+
+            if (homeSelect) updateSelect(homeSelect);
+            if (awaySelect) updateSelect(awaySelect);
+
+            if (warningAlert) {
+                if (count === 0) {
+                    warningAlert.classList.remove('d-none');
+                } else {
+                    warningAlert.classList.add('d-none');
+                }
+            }
+        }
+
+        // Kích hoạt lọc khi modal mở
+        var scheduleModalEl = document.getElementById('scheduleMatchModal');
+        if (scheduleModalEl) {
+            scheduleModalEl.addEventListener('shown.bs.modal', function () {
+                filterTeamsByTournament();
+            });
+        }
+    </script>
 }

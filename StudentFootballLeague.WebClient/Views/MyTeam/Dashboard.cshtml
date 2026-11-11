@@ -55,7 +55,7 @@ else
                 <div class="col-auto">
                     @if (!string.IsNullOrEmpty(Model.LogoUrl))
                     {
-                        <img src="@Model.LogoUrl" alt="logo" class="rounded-circle shadow-sm" style="width: 80px; height: 80px; object-fit: cover;" onerror="this.src='/images/default-team.png';" />
+                        <img src="@Model.LogoUrl" alt="logo" class="rounded-circle shadow-sm" style="width: 80px; height: 80px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
                     }
                     else
                     {

@@ -17,15 +17,16 @@ namespace StudentFootballLeague.API.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMatchService _matchService;
+        private readonly IStandingsService _standingsService;
 
-        public MatchesController(AppDbContext context, IMatchService matchService)
+        public MatchesController(AppDbContext context, IMatchService matchService, IStandingsService standingsService)
         {
             _context = context;
             _matchService = matchService;
+            _standingsService = standingsService;
         }
 
         [HttpGet("odata/Matches")]
-        [HttpGet("api/matches")]
         [EnableQuery(MaxTop = 100)]
         public IQueryable<Match> Get()
         {
@@ -37,6 +38,76 @@ namespace StudentFootballLeague.API.Controllers
                 .Include(m => m.Events)
                     .ThenInclude(e => e.Player)
                 .AsQueryable();
+        }
+
+        [HttpGet("api/matches")]
+        public async Task<IActionResult> GetAllMatches([FromQuery] int? tournamentId, [FromQuery] string? groupName, [FromQuery] string? status)
+        {
+            var query = _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Include(m => m.Referee)
+                .Include(m => m.Tournament)
+                .Include(m => m.Events)
+                    .ThenInclude(e => e.Player)
+                .AsQueryable();
+
+            if (tournamentId.HasValue)
+            {
+                query = query.Where(m => m.TournamentId == tournamentId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                query = query.Where(m => m.GroupName == groupName);
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(m => m.Status == status);
+            }
+
+            var matches = await query
+                .OrderByDescending(m => m.MatchDateTime)
+                .Select(m => new MatchReadDto
+                {
+                    MatchId = m.MatchId,
+                    TournamentId = m.TournamentId,
+                    TournamentName = m.Tournament != null ? m.Tournament.Name : "",
+                    GroupName = m.GroupName,
+                    RoundName = m.RoundName,
+                    HomeTeamId = m.HomeTeamId,
+                    HomeTeamName = m.HomeTeam != null ? m.HomeTeam.TeamName : "",
+                    HomeTeamLogo = m.HomeTeam != null ? m.HomeTeam.LogoUrl : null,
+                    AwayTeamId = m.AwayTeamId,
+                    AwayTeamName = m.AwayTeam != null ? m.AwayTeam.TeamName : "",
+                    AwayTeamLogo = m.AwayTeam != null ? m.AwayTeam.LogoUrl : null,
+                    MatchDateTime = m.MatchDateTime,
+                    PitchName = m.PitchName,
+                    RefereeId = m.RefereeId,
+                    RefereeName = m.Referee != null ? m.Referee.FullName : null,
+                    HomeScore = m.HomeScore,
+                    AwayScore = m.AwayScore,
+                    HomePenalty = m.HomePenalty,
+                    AwayPenalty = m.AwayPenalty,
+                    Status = m.Status,
+                    Events = m.Events.Select(e => new MatchEventReadDto
+                    {
+                        EventId = e.EventId,
+                        MatchId = e.MatchId,
+                        TeamId = e.TeamId,
+                        TeamName = e.TeamId == m.HomeTeamId ? (m.HomeTeam != null ? m.HomeTeam.TeamName : "") : (m.AwayTeam != null ? m.AwayTeam.TeamName : ""),
+                        PlayerId = e.PlayerId,
+                        PlayerName = e.Player != null ? e.Player.FullName : "",
+                        JerseyNumber = e.Player != null ? e.Player.JerseyNumber : 0,
+                        EventType = e.EventType,
+                        Minute = e.Minute,
+                        Description = e.Description
+                    }).OrderBy(e => e.Minute).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(matches);
         }
 
         [HttpGet("api/matches/{id}")]
@@ -130,6 +201,47 @@ namespace StudentFootballLeague.API.Controllers
             }
 
             return Ok(new { message = "Cập nhật tỷ số và sự kiện trận đấu thành công. Bảng xếp hạng đã được tính toán lại." });
+        }
+
+        [HttpDelete("api/matches/{matchId}/events/{eventId}")]
+        [Authorize(Roles = "Admin,Referee")]
+        public async Task<IActionResult> DeleteMatchEvent(int matchId, int eventId)
+        {
+            var ev = await _context.MatchEvents
+                .Include(e => e.Match)
+                .FirstOrDefaultAsync(e => e.MatchId == matchId && e.EventId == eventId);
+
+            if (ev == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sự kiện trận đấu." });
+            }
+
+            var match = ev.Match;
+            if (match == null)
+            {
+                return NotFound(new { message = "Không tìm thấy trận đấu liên quan." });
+            }
+
+            // Nếu là bàn thắng, tự động giảm tỷ số tương ứng
+            if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
+            {
+                if (ev.TeamId == match.HomeTeamId && (match.HomeScore ?? 0) > 0)
+                {
+                    match.HomeScore--;
+                }
+                else if (ev.TeamId == match.AwayTeamId && (match.AwayScore ?? 0) > 0)
+                {
+                    match.AwayScore--;
+                }
+            }
+
+            _context.MatchEvents.Remove(ev);
+            await _context.SaveChangesAsync();
+
+            // Tự động tính lại Bảng xếp hạng
+            await _standingsService.RecalculateStandingsAsync(match.TournamentId, match.GroupName);
+
+            return Ok(new { message = "Đã xóa sự kiện thành công. Tỷ số và Bảng xếp hạng đã được cập nhật lại." });
         }
     }
 }
