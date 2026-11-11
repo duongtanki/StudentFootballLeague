@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudentFootballLeague.BusinessLogic.DTOs;
+using StudentFootballLeague.BusinessLogic.Services;
 using StudentFootballLeague.DataAccess.Data;
 using StudentFootballLeague.DataAccess.Entities;
 
@@ -16,10 +17,12 @@ namespace StudentFootballLeague.API.Controllers
     public class TournamentsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ITournamentService _tournamentService;
 
-        public TournamentsController(AppDbContext context)
+        public TournamentsController(AppDbContext context, ITournamentService tournamentService)
         {
             _context = context;
+            _tournamentService = tournamentService;
         }
 
         [HttpGet]
@@ -163,24 +166,13 @@ namespace StudentFootballLeague.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            var tournament = await _context.Tournaments
-                .Include(t => t.Matches)
-                .FirstOrDefaultAsync(t => t.TournamentId == id);
-
-            if (tournament == null)
+            var result = await _tournamentService.DeleteOrCancelTournamentAsync(id);
+            if (!result.IsSuccess)
             {
-                return NotFound(new { message = "Không tìm thấy giải đấu." });
+                return StatusCode(result.StatusCode, new { message = result.Message });
             }
 
-            if (tournament.Matches.Any(m => m.Status == "Completed" || m.Status == "InProgress"))
-            {
-                return BadRequest(new { message = "Không thể xóa giải đấu đã có trận đấu diễn ra." });
-            }
-
-            _context.Tournaments.Remove(tournament);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đã xóa giải đấu thành công." });
+            return Ok(new { message = result.Message });
         }
 
         [HttpPost("{id}/register")]
@@ -205,7 +197,7 @@ namespace StudentFootballLeague.API.Controllers
             }
 
             var team = await _context.Teams
-                .Include(t => t.Players)
+                .Include(t => t.Players.Where(p => p.IsActive))
                 .FirstOrDefaultAsync(t => t.ManagerId == userId);
 
             if (team == null)
@@ -213,13 +205,14 @@ namespace StudentFootballLeague.API.Controllers
                 return BadRequest(new { message = "Bạn chưa tạo đội bóng. Hãy tạo đội bóng trước khi đăng ký giải." });
             }
 
-            // Kiểm tra điều kiện tối thiểu cầu thủ
-            if (team.Players.Count < tournament.MinPlayersPerTeam)
+            // Kiểm tra điều kiện tối thiểu cầu thủ đang hoạt động
+            var activePlayers = team.Players.Where(p => p.IsActive).ToList();
+            if (activePlayers.Count < tournament.MinPlayersPerTeam)
             {
-                return BadRequest(new { message = $"Đội bóng của bạn hiện có {team.Players.Count} cầu thủ. Giải đấu yêu cầu tối thiểu {tournament.MinPlayersPerTeam} cầu thủ." });
+                return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ. Giải đấu yêu cầu tối thiểu {tournament.MinPlayersPerTeam} cầu thủ." });
             }
 
-            var hasGk = team.Players.Any(p => p.Position == "GK");
+            var hasGk = activePlayers.Any(p => p.Position == "GK");
             if (!hasGk)
             {
                 return BadRequest(new { message = "Đội bóng phải có ít nhất 1 Thủ môn (GK) mới đủ điều kiện đăng ký." });

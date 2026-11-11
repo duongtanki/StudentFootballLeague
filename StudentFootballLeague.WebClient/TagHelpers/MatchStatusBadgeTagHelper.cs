@@ -11,40 +11,40 @@ namespace StudentFootballLeague.WebClient.TagHelpers
         public override void Process(TagHelperContext context, TagHelperOutput output)
         {
             output.TagName = "span";
-            
-            string badgeClass;
-            string displayText;
+
+            string modifierClass;
+            string innerHtml;
 
             switch (Status?.ToLower())
             {
                 case "scheduled":
-                    badgeClass = "bg-secondary text-white";
-                    displayText = "Sắp diễn ra";
+                    modifierClass = "apex-badge--scheduled";
+                    innerHtml = "Sắp diễn ra";
                     break;
                 case "inprogress":
-                    badgeClass = "bg-danger text-white animate-pulse";
-                    displayText = "● Đang thi đấu";
+                    modifierClass = "apex-badge--live";
+                    innerHtml = "<span class=\"apex-pulse-dot\"></span>Đang thi đấu";
                     break;
                 case "completed":
-                    badgeClass = "bg-success text-white";
-                    displayText = "Đã kết thúc";
+                    modifierClass = "apex-badge--completed";
+                    innerHtml = "Đã kết thúc";
                     break;
                 case "postponed":
-                    badgeClass = "bg-warning text-dark";
-                    displayText = "Tạm hoãn";
+                    modifierClass = "apex-badge--postponed";
+                    innerHtml = "Tạm hoãn";
                     break;
                 case "cancelled":
-                    badgeClass = "bg-dark text-white";
-                    displayText = "Đã hủy";
+                    modifierClass = "apex-badge--cancelled";
+                    innerHtml = "Đã hủy";
                     break;
                 default:
-                    badgeClass = "bg-light text-dark";
-                    displayText = Status ?? "Chưa rõ";
+                    modifierClass = "apex-badge--scheduled";
+                    innerHtml = System.Net.WebUtility.HtmlEncode(Status ?? "Chưa rõ");
                     break;
             }
 
-            output.Attributes.SetAttribute("class", $"badge {badgeClass} px-2 py-1");
-            output.Content.SetContent(displayText);
+            output.Attributes.SetAttribute("class", $"apex-badge {modifierClass}");
+            output.Content.SetHtmlContent(innerHtml);
         }
     }
 }

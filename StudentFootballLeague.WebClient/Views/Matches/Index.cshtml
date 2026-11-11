@@ -9,8 +9,15 @@
     string selectedStatus = ViewBag.SelectedStatus as string ?? "all";
     string? selectedGroup = ViewBag.SelectedGroup as string;
     string? selectedRound = ViewBag.SelectedRound as string;
+    string? searchTeam = ViewBag.SearchTeam as string;
 
-    var groupedByDate = (Model ?? Enumerable.Empty<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>())
+    var allMatches = (Model ?? Enumerable.Empty<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>()).ToList();
+    var totalCount = allMatches.Count;
+    var liveCount = allMatches.Count(m => m.Status == "InProgress");
+    var scheduledCount = allMatches.Count(m => m.Status == "Scheduled");
+    var totalGoals = allMatches.Sum(m => (m.HomeScore ?? 0) + (m.AwayScore ?? 0));
+
+    var groupedByDate = allMatches
         .GroupBy(m => m.MatchDateTime.Date)
         .OrderByDescending(g => g.Key)
         .ToList();
@@ -28,7 +35,7 @@
             DayOfWeek.Sunday => "Chủ Nhật",
             _ => ""
         };
-        return $"{dayOfWeek}, {date:dd} tháng {date:MM}";
+        return $"{dayOfWeek}, {date:dd} tháng {date:MM}, {date:yyyy}";
     }
 
     string FormatGroupName(string? groupName)
@@ -38,404 +45,249 @@
             return "Bảng " + groupName.Substring(6);
         return groupName;
     }
+
+    string Monogram(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "FC";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
+    }
 }
 
-<style>
-    .schedule-page {
-        background-color: #fbfaf6;
-        border-radius: 20px;
-        padding: 2rem 2.25rem;
-    }
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div>
+        <div class="apex-label-caps mb-1" style="color: var(--apex-crimson);">
+            FPT Student Football League • Match Center
+        </div>
+        <h1 class="apex-display fw-bold mb-1" style="font-size: clamp(2rem, 3.6vw, 2.9rem);">LỊCH THI ĐẤU &amp; KẾT QUẢ</h1>
+        <p class="text-muted mb-0">Theo dõi trực tiếp diễn biến các trận đấu vòng bảng và vòng loại trực tiếp.</p>
+    </div>
 
-    .schedule-eyebrow {
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        color: #2f5d27;
-        text-transform: uppercase;
-        margin-bottom: 0.35rem;
-    }
-
-    .schedule-title {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #0f172a;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.35rem;
-    }
-
-    .schedule-subtitle {
-        color: #64748b;
-        font-size: 0.95rem;
-        margin-bottom: 0;
-    }
-
-    .tournament-pill-select {
-        background-color: #ffffff;
-        border: 1px solid #ece7dc;
-        border-radius: 12px;
-        padding: 0.55rem 2.2rem 0.55rem 1.1rem;
-        font-weight: 700;
-        font-size: 0.9rem;
-        color: #0f172a;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-        cursor: pointer;
-    }
-
-    .schedule-filter-bar {
-        background-color: #ffffff;
-        border: 1px solid #ece7dc;
-        border-radius: 14px;
-        padding: 0.65rem 1.15rem;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
-    }
-
-    .status-tab {
-        display: inline-block;
-        padding: 0.48rem 1.1rem;
-        border-radius: 10px;
-        font-size: 0.88rem;
-        font-weight: 700;
-        color: #1e293b;
-        text-decoration: none;
-        transition: all 0.15s ease;
-    }
-
-    .status-tab:hover {
-        background-color: #f3efe6;
-        color: #0f172a;
-    }
-
-    .status-tab.active {
-        background-color: #d9edd4;
-        color: #1f4d18;
-    }
-
-    .inline-filter-label {
-        font-size: 0.85rem;
-        color: #64748b;
-        font-weight: 500;
-        margin-right: 0.25rem;
-    }
-
-    .inline-filter-select {
-        border: none;
-        background: transparent;
-        font-size: 0.88rem;
-        font-weight: 700;
-        color: #0f172a;
-        padding: 0.25rem 1.5rem 0.25rem 0.25rem;
-        cursor: pointer;
-        width: auto;
-        display: inline-block;
-    }
-
-    .inline-filter-select:focus {
-        box-shadow: none;
-        outline: none;
-    }
-
-    .reset-filter-link {
-        color: #2f5d27;
-        font-weight: 700;
-        font-size: 0.88rem;
-        text-decoration: none;
-    }
-
-    .reset-filter-link:hover {
-        text-decoration: underline;
-        color: #1f4d18;
-    }
-
-    .date-group-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .date-group-title {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: #0f172a;
-        margin: 0;
-    }
-
-    .round-pill {
-        background-color: #f3efe6;
-        color: #57534e;
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        padding: 0.35rem 1rem;
-        border-radius: 999px;
-    }
-
-    .match-row-card {
-        background-color: #ffffff;
-        border: 1px solid #ece7dc;
-        border-radius: 14px;
-        padding: 1.25rem 1.75rem;
-        margin-bottom: 0.85rem;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .match-row-card:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-    }
-
-    .match-time-big {
-        font-size: 1.35rem;
-        font-weight: 800;
-        color: #0f172a;
-        line-height: 1.15;
-    }
-
-    .match-pitch-sub {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #78716c;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-top: 0.2rem;
-    }
-
-    .match-team-name {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #0f172a;
-    }
-
-    .vs-pill {
-        display: inline-block;
-        background-color: #f3efe6;
-        color: #1e293b;
-        font-size: 0.75rem;
-        font-weight: 800;
-        padding: 0.32rem 1.15rem;
-        border-radius: 999px;
-        text-transform: lowercase;
-    }
-
-    .final-score-pill {
-        display: inline-block;
-        background-color: #0f172a;
-        color: #ffffff;
-        font-size: 0.95rem;
-        font-weight: 800;
-        padding: 0.32rem 1.05rem;
-        border-radius: 999px;
-        letter-spacing: 0.03em;
-    }
-
-    .live-score-pill {
-        display: inline-block;
-        background-color: #fee2e2;
-        color: #b91c1c;
-        font-size: 0.95rem;
-        font-weight: 800;
-        padding: 0.32rem 1.05rem;
-        border-radius: 999px;
-    }
-
-    .detail-arrow-link {
-        color: #2f5d27;
-        font-weight: 700;
-        font-size: 0.88rem;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .detail-arrow-link:hover {
-        color: #1f4d18;
-        text-decoration: underline;
-    }
-
-    .completed-status-link {
-        color: #475569;
-        font-weight: 700;
-        font-size: 0.88rem;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .completed-status-link:hover {
-        color: #2f5d27;
-        text-decoration: underline;
-    }
-
-    @@media (max-width: 767.98px) {
-        .schedule-page {
-            padding: 1.25rem 1rem;
-        }
-        .match-row-card {
-            padding: 1rem;
-        }
-    }
-</style>
-
-<div class="schedule-page">
-    <form method="get" id="scheduleFilterForm">
+    <form method="get" class="d-flex flex-column align-items-md-end">
         <input type="hidden" name="status" value="@selectedStatus" />
+        <input type="hidden" name="groupName" value="@selectedGroup" />
+        <input type="hidden" name="roundName" value="@selectedRound" />
+        <input type="hidden" name="searchTeam" value="@searchTeam" />
+        <label class="apex-label-caps text-muted mb-1">Mùa giải đang chọn</label>
+        <select name="tournamentId" class="form-select form-select-sm" style="min-width: 260px;" onchange="this.form.submit()">
+            <option value="">Tất cả mùa giải</option>
+            @foreach (var t in tournaments)
+            {
+                <option value="@t.TournamentId" selected="@(selectedTournament == t.TournamentId ? "selected" : null)">
+                    @t.Name (@t.Season)
+                </option>
+            }
+        </select>
+    </form>
+</div>
 
-        <!-- Header -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+<!-- 4 KPI Telemetry Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="apex-kpi-card d-flex justify-content-between align-items-center">
             <div>
-                <div class="schedule-eyebrow">Theo dõi mùa giải</div>
-                <h1 class="schedule-title">Lịch thi đấu &amp; Kết quả</h1>
-                <p class="schedule-subtitle">Mọi trận cầu, mọi khoảnh khắc. Cập nhật chính thức từ ban tổ chức.</p>
+                <div class="apex-label-caps text-muted mb-1">Tổng trận</div>
+                <div class="apex-kpi-value">@totalCount</div>
             </div>
+            <span class="apex-crest" style="color: var(--apex-pink-soft);"><i class="bi bi-dribbble"></i></span>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="apex-kpi-card d-flex justify-content-between align-items-center">
             <div>
-                <select name="tournamentId" class="form-select tournament-pill-select" onchange="this.form.submit()">
-                    <option value="">Tất cả mùa giải</option>
-                    @foreach (var t in tournaments)
-                    {
-                        <option value="@t.TournamentId" selected="@(selectedTournament == t.TournamentId ? "selected" : null)">
-                            @t.Name
-                        </option>
-                    }
-                </select>
+                <div class="apex-label-caps text-muted mb-1">Đang diễn ra</div>
+                <div class="apex-kpi-value" style="color: var(--apex-mint);">@liveCount</div>
+            </div>
+            <span class="apex-crest" style="color: var(--apex-mint);"><i class="bi bi-broadcast"></i></span>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="apex-kpi-card d-flex justify-content-between align-items-center">
+            <div>
+                <div class="apex-label-caps text-muted mb-1">Sắp tranh tài</div>
+                <div class="apex-kpi-value" style="color: var(--apex-violet-soft);">@scheduledCount</div>
+            </div>
+            <span class="apex-crest" style="color: var(--apex-violet-soft);"><i class="bi bi-clock"></i></span>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="apex-kpi-card d-flex justify-content-between align-items-center">
+            <div>
+                <div class="apex-label-caps text-muted mb-1">Tổng bàn thắng</div>
+                <div class="apex-kpi-value" style="color: var(--apex-crimson);">@totalGoals</div>
+            </div>
+            <span class="apex-crest" style="color: var(--apex-crimson);"><i class="bi bi-bullseye"></i></span>
+        </div>
+    </div>
+</div>
+
+<!-- Status Filter Tabs & Search Bar -->
+<div class="apex-panel p-3 mb-4">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a asp-action="Index" asp-route-tournamentId="@selectedTournament" asp-route-status="all" asp-route-groupName="@selectedGroup" asp-route-roundName="@selectedRound" asp-route-searchTeam="@searchTeam"
+           class="apex-tab-btn @(selectedStatus == "all" ? "active" : "")">
+            Tất cả trận
+        </a>
+        <a asp-action="Index" asp-route-tournamentId="@selectedTournament" asp-route-status="upcoming" asp-route-groupName="@selectedGroup" asp-route-roundName="@selectedRound" asp-route-searchTeam="@searchTeam"
+           class="apex-tab-btn @(selectedStatus == "upcoming" ? "active" : "")">
+            Sắp diễn ra
+        </a>
+        <a asp-action="Index" asp-route-tournamentId="@selectedTournament" asp-route-status="completed" asp-route-groupName="@selectedGroup" asp-route-roundName="@selectedRound" asp-route-searchTeam="@searchTeam"
+           class="apex-tab-btn @(selectedStatus == "completed" ? "active" : "")">
+            Đã kết thúc
+        </a>
+    </div>
+
+    <form method="get" class="row g-2 align-items-center">
+        <input type="hidden" name="tournamentId" value="@selectedTournament" />
+        <input type="hidden" name="status" value="@selectedStatus" />
+        <div class="col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text border-0" style="background: var(--apex-lowest); color: var(--apex-muted);"><i class="bi bi-search"></i></span>
+                <input type="text" name="searchTeam" class="form-control" placeholder="Tìm theo tên đội bóng..." value="@searchTeam" />
             </div>
         </div>
-
-        <!-- Filter Bar -->
-        <div class="schedule-filter-bar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <a class="status-tab @(selectedStatus == "all" ? "active" : "")"
-                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "all", groupName = selectedGroup, roundName = selectedRound })">
-                    Tất cả trận
-                </a>
-                <a class="status-tab @(selectedStatus == "upcoming" ? "active" : "")"
-                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "upcoming", groupName = selectedGroup, roundName = selectedRound })">
-                    Sắp diễn ra
-                </a>
-                <a class="status-tab @(selectedStatus == "completed" ? "active" : "")"
-                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "completed", groupName = selectedGroup, roundName = selectedRound })">
-                    Đã kết thúc
-                </a>
-            </div>
-
-            <div class="d-flex flex-wrap align-items-center gap-4">
-                <div class="d-flex align-items-center">
-                    <span class="inline-filter-label">Bảng:</span>
-                    <select name="groupName" class="form-select inline-filter-select" onchange="this.form.submit()">
-                        <option value="">Tất cả</option>
-                        @foreach (var grp in availableGroups)
-                        {
-                            <option value="@grp" selected="@(string.Equals(selectedGroup, grp, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
-                                @FormatGroupName(grp)
-                            </option>
-                        }
-                    </select>
-                </div>
-
-                <div class="d-flex align-items-center">
-                    <span class="inline-filter-label">Vòng:</span>
-                    <select name="roundName" class="form-select inline-filter-select" onchange="this.form.submit()">
-                        <option value="">Tất cả</option>
-                        @foreach (var rnd in availableRounds)
-                        {
-                            <option value="@rnd" selected="@(string.Equals(selectedRound, rnd, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
-                                @rnd
-                            </option>
-                        }
-                    </select>
-                </div>
-
-                <a href="@Url.Action("Index", "Matches")" class="reset-filter-link">Đặt lại</a>
-            </div>
+        <div class="col-6 col-md-3">
+            <select name="groupName" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Tất cả bảng đấu</option>
+                @foreach (var g in availableGroups)
+                {
+                    <option value="@g" selected="@(string.Equals(selectedGroup, g, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                        @FormatGroupName(g)
+                    </option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select name="roundName" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Tất cả vòng đấu</option>
+                @foreach (var r in availableRounds)
+                {
+                    <option value="@r" selected="@(string.Equals(selectedRound, r, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                        @r
+                    </option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-apex-primary btn-sm flex-grow-1">Lọc</button>
+            <a asp-action="Index" asp-route-tournamentId="@selectedTournament" class="btn btn-apex-ghost btn-sm" title="Đặt lại bộ lọc">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
         </div>
     </form>
+</div>
 
-    <!-- Danh sách trận đấu đồng nhất theo ngày & thứ tự giờ -->
-    @if (groupedByDate.Any())
+<!-- Date-Grouped Matches List -->
+@if (groupedByDate.Any())
+{
+    foreach (var dateGroup in groupedByDate)
     {
-        foreach (var dateGroup in groupedByDate)
-        {
-            var matchesInDay = dateGroup.OrderBy(m => m.MatchDateTime).ToList();
-            var distinctRounds = matchesInDay.Select(m => m.RoundName).Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToList();
+        var matchesInDay = dateGroup.OrderBy(m => m.MatchDateTime).ToList();
+        var roundLabel = string.Join(" • ", matchesInDay.Select(m => m.RoundName).Distinct());
 
-            <div class="date-group-header">
-                <h2 class="date-group-title">@FormatVietnameseDate(dateGroup.Key)</h2>
-                @if (distinctRounds.Any())
-                {
-                    <span class="round-pill">@string.Join(" · ", distinctRounds)</span>
-                }
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="apex-section-accent" style="height: 20px;"></span>
+                <h2 class="apex-display fw-bold fs-4 mb-0 text-uppercase">@FormatVietnameseDate(dateGroup.Key)</h2>
+                <span class="text-muted small">• @roundLabel</span>
             </div>
+            <span class="apex-badge apex-badge--scheduled">@matchesInDay.Count trận đấu</span>
+        </div>
 
+        <div class="d-flex flex-column gap-3">
             @foreach (var m in matchesInDay)
             {
-                <div class="match-row-card">
-                    <div class="row align-items-center gy-2">
-                        <div class="col-6 col-md-2">
-                            <div class="match-time-big">@m.MatchDateTime.ToString("HH:mm")</div>
-                            <div class="match-pitch-sub">@m.PitchName</div>
-                        </div>
+                var isLive = m.Status == "InProgress";
+                var showScore = isLive || m.Status == "Completed";
+                var goals = m.Events?.Where(e => e.EventType == "Goal" || e.EventType == "PenaltyGoal").OrderBy(e => e.Minute).ToList() ?? new List<StudentFootballLeague.BusinessLogic.DTOs.MatchEventReadDto>();
 
-                        <div class="col-5 col-md-3 text-md-center">
-                            <div class="match-team-name">@m.HomeTeamName</div>
-                        </div>
-
-                        <div class="col-2 col-md-2 text-center">
-                            @if (m.Status == "Completed")
+                <article class="apex-match-card @(isLive ? "apex-match-card--live" : "") p-3 p-md-4">
+                    <div class="row align-items-center g-3">
+                        <!-- Time & Pitch -->
+                        <div class="col-lg-3 d-flex flex-lg-column justify-content-between align-items-lg-start gap-2">
+                            <div>
+                                <div class="apex-display fw-bold fs-4 text-white apex-tabular lh-1">@m.MatchDateTime.ToString("HH:mm")</div>
+                                <small class="text-muted"><i class="bi bi-geo-alt me-1" style="color: var(--apex-mint);"></i>@m.PitchName</small>
+                            </div>
+                            @if (!string.IsNullOrEmpty(m.GroupName))
                             {
-                                <span class="final-score-pill">@(m.HomeScore ?? 0) – @(m.AwayScore ?? 0)</span>
-                                @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
-                                {
-                                    <div class="small text-muted mt-1" style="font-size: 0.72rem;">Pen: @m.HomePenalty – @m.AwayPenalty</div>
-                                }
-                            }
-                            else if (m.Status == "InProgress")
-                            {
-                                <span class="live-score-pill">@(m.HomeScore ?? 0) – @(m.AwayScore ?? 0)</span>
-                                <div class="small text-danger fw-bold mt-1" style="font-size: 0.7rem;">Đang đá</div>
-                            }
-                            else if (m.Status == "Postponed" || m.Status == "Cancelled")
-                            {
-                                <span class="badge bg-secondary rounded-pill">@(m.Status == "Postponed" ? "Tạm hoãn" : "Đã hủy")</span>
-                            }
-                            else
-                            {
-                                <span class="vs-pill">vs</span>
+                                <span class="apex-badge apex-badge--scheduled">@FormatGroupName(m.GroupName)</span>
                             }
                         </div>
 
-                        <div class="col-5 col-md-3 text-md-center">
-                            <div class="match-team-name">@m.AwayTeamName</div>
+                        <!-- Matchup & Score -->
+                        <div class="col-lg-6">
+                            <div class="row align-items-center text-center g-2">
+                                <div class="col-5 d-flex align-items-center justify-content-end gap-2">
+                                    <div class="text-end min-w-0">
+                                        <div class="fw-bold text-white text-truncate">@m.HomeTeamName</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">Chủ nhà</small>
+                                    </div>
+                                    <span class="apex-crest d-none d-sm-inline-flex">@Monogram(m.HomeTeamName)</span>
+                                </div>
+
+                                <div class="col-2">
+                                    @if (showScore)
+                                    {
+                                        <div class="apex-score @(isLive ? "apex-score--live" : "")" style="font-size: 2rem;">
+                                            @m.HomeScore - @m.AwayScore
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="apex-display fw-bold fs-4 text-white">VS</span>
+                                    }
+                                </div>
+
+                                <div class="col-5 d-flex align-items-center justify-content-start gap-2">
+                                    <span class="apex-crest d-none d-sm-inline-flex">@Monogram(m.AwayTeamName)</span>
+                                    <div class="text-start min-w-0">
+                                        <div class="fw-bold text-white text-truncate">@m.AwayTeamName</div>
+                                        <small class="text-muted" style="font-size: 0.72rem;">Đội khách</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="col-6 col-md-2 d-flex justify-content-end align-items-center gap-3">
-                            @if (!string.IsNullOrWhiteSpace(m.GroupName))
-                            {
-                                <span class="text-muted small text-nowrap">@FormatGroupName(m.GroupName)</span>
-                            }
-                            @if (m.Status == "Completed")
-                            {
-                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="completed-status-link">
-                                    Kết thúc <i class="bi bi-arrow-up-right"></i>
-                                </a>
-                            }
-                            else
-                            {
-                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="detail-arrow-link">
-                                    Chi tiết <i class="bi bi-arrow-up-right"></i>
-                                </a>
-                            }
+                        <!-- Status & Action -->
+                        <div class="col-lg-3 d-flex justify-content-between justify-content-lg-end align-items-center gap-2">
+                            <match-status status="@m.Status"></match-status>
+                            <a asp-action="Details" asp-route-id="@m.MatchId" class="btn btn-sm @(isLive ? "btn-apex-primary" : "btn-apex-ghost") px-3">
+                                Chi tiết <i class="bi bi-chevron-right ms-1"></i>
+                            </a>
                         </div>
                     </div>
-                </div>
+
+                    @if (goals.Any() || !string.IsNullOrEmpty(m.RefereeName))
+                    {
+                        <div class="mt-3 pt-2 border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small" style="border-color: var(--apex-border-subtle) !important;">
+                            <div style="color: var(--apex-mint);">
+                                @if (goals.Any())
+                                {
+                                    <i class="bi bi-bullseye me-1"></i>
+                                    @string.Join(" • ", goals.Select(g => $"{g.PlayerName} {g.Minute}'{(g.EventType == "PenaltyGoal" ? " (Pen)" : "")}"))
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(m.RefereeName))
+                            {
+                                <span class="apex-label-caps text-muted">Trọng tài: @m.RefereeName</span>
+                            }
+                        </div>
+                    }
+                </article>
             }
-        }
-    }
-    else
-    {
-        <div class="bg-white border rounded-4 p-5 text-center text-muted mt-3" style="border-color: #ece7dc !important;">
-            <i class="bi bi-calendar-x fs-1 mb-2 d-block"></i>
-            <h5 class="fw-bold text-dark">Không tìm thấy trận đấu nào</h5>
-            <p class="mb-0">Thử thay đổi bộ lọc trạng thái, bảng đấu hoặc vòng đấu.</p>
         </div>
     }
-</div>
+}
+else
+{
+    <div class="apex-panel p-5 text-center text-muted">
+        <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+        <h5 class="fw-bold text-white">Không tìm thấy trận đấu phù hợp</h5>
+        <p class="mb-3">Thử thay đổi điều kiện lọc hoặc quay lại xem tất cả các trận.</p>
+        <a asp-action="Index" class="btn btn-sm btn-apex-primary">Xem tất cả trận đấu</a>
+    </div>
+}

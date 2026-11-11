@@ -92,16 +92,26 @@ GO
 CREATE TABLE Players (
     PlayerId INT IDENTITY(1,1) PRIMARY KEY,
     TeamId INT NOT NULL,
-    StudentCode VARCHAR(20) NOT NULL CONSTRAINT UQ_Players_StudentCode UNIQUE,
+    StudentCode VARCHAR(20) NOT NULL,
     FullName NVARCHAR(100) NOT NULL,
     DateOfBirth DATE NOT NULL,
     JerseyNumber INT NOT NULL CONSTRAINT CK_Players_JerseyNumber CHECK (JerseyNumber BETWEEN 1 AND 99),
     Position VARCHAR(20) NOT NULL CONSTRAINT CK_Players_Position CHECK (Position IN ('GK', 'DF', 'MF', 'FW')),
     IsActive BIT NOT NULL CONSTRAINT DF_Players_IsActive DEFAULT 1,
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Players_CreatedAt DEFAULT GETDATE(),
-    CONSTRAINT FK_Players_Teams FOREIGN KEY (TeamId) REFERENCES Teams(TeamId) ON DELETE CASCADE,
-    CONSTRAINT UQ_Players_Team_Jersey UNIQUE (TeamId, JerseyNumber)
+    CONSTRAINT FK_Players_Teams FOREIGN KEY (TeamId) REFERENCES Teams(TeamId) ON DELETE CASCADE
 );
+GO
+
+-- FILTERED UNIQUE INDEX: Hỗ trợ xóa mềm (IsActive = 0) mà không khóa StudentCode hoặc số áo của cầu thủ đã rời đội
+CREATE UNIQUE NONCLUSTERED INDEX UQ_Players_StudentCode
+ON Players(StudentCode)
+WHERE IsActive = 1;
+GO
+
+CREATE UNIQUE NONCLUSTERED INDEX UQ_Players_Team_Jersey
+ON Players(TeamId, JerseyNumber)
+WHERE IsActive = 1;
 GO
 
 -- =====================================================================

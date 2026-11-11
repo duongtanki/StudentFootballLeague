@@ -1,49 +1,151 @@
 @{
-    ViewData["Title"] = "Trang chủ - Giải Bóng Đá Sinh Viên";
+    ViewData["Title"] = "Trang chủ - FPT Student Football League";
     var activeTour = ViewBag.ActiveTournament as StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto;
     var matches = ViewBag.Matches as List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>();
     var topScorers = ViewBag.TopScorers as List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto>();
+    var featuredMatch = matches.FirstOrDefault(m => m.Status == "InProgress") ?? matches.FirstOrDefault();
+    string Monogram(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "FC";
+        var parts = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, System.Math.Min(2, name.Length)).ToUpper();
+    }
 }
 
-<!-- Hero Banner -->
-<div class="p-5 mb-4 bg-dark text-white rounded-4 shadow position-relative overflow-hidden" style="background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);">
-    <div class="container-fluid py-3 position-relative" style="z-index: 2;">
-        <span class="badge bg-warning text-dark px-3 py-2 fw-bold text-uppercase mb-3">
-            <i class="bi bi-fire me-1"></i> Giải Đấu Đang Khởi Tranh
-        </span>
-        <h1 class="display-5 fw-bold">@(activeTour?.Name ?? "Giải Bóng Đá Sinh Viên Mở Rộng 2026")</h1>
-        <p class="col-md-8 fs-5 text-light">
-            Sân chơi thể thao cuồng nhiệt dành cho các đội bóng sinh viên. Cập nhật tỷ số trực tiếp, lịch thi đấu, bảng xếp hạng và danh hiệu Vua phá lưới từng phút!
-        </p>
-        <div class="d-flex flex-wrap gap-2 mt-4">
-            <a asp-controller="Matches" asp-action="Index" class="btn btn-warning btn-lg fw-bold px-4">
-                <i class="bi bi-calendar3 me-1"></i> Xem Lịch Thi Đấu
-            </a>
-            <a asp-controller="Standings" asp-action="Index" class="btn btn-outline-light btn-lg px-4">
-                <i class="bi bi-bar-chart-line me-1"></i> Xem Bảng Xếp Hạng
-            </a>
+<!-- Hero Broadcast Stage -->
+<section class="apex-hero p-4 p-lg-5 mb-4">
+    <div class="row align-items-center g-4 position-relative" style="z-index: 2;">
+        <div class="col-lg-8">
+            <div class="apex-live-pill mb-3">
+                <span class="apex-pulse-dot"></span>
+                <span>Giải đấu đang khởi tranh • Mùa giải @(activeTour?.Season ?? "2026")</span>
+            </div>
+
+            <h1 class="apex-hero-title mb-3">
+                @(activeTour?.Name ?? "Giải Bóng Đá Sinh Viên FPT Cup 2026")
+                <span class="apex-gradient-text d-block fs-2 mt-1">(SFLMS)</span>
+            </h1>
+
+            <p class="text-muted mb-4" style="max-width: 58ch; font-size: 1.05rem;">
+                Giải đấu sân 7 quy tụ các đội bóng xuất sắc nhất các khoa &amp; chuyên ngành FPT University. Cập nhật tỷ số trực tiếp, diễn biến sự kiện và bảng xếp hạng Fair-play tức thì.
+            </p>
+
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <a asp-controller="Matches" asp-action="Index" class="btn btn-apex-primary px-4 py-2 d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-calendar3"></i> Xem lịch thi đấu
+                </a>
+                <a asp-controller="Standings" asp-action="Index" class="btn btn-apex-violet px-4 py-2 d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-bar-chart-line"></i> Xem bảng xếp hạng
+                </a>
+            </div>
+
+            <!-- Stadium Telemetry Counters -->
+            <div class="row g-3 pt-2">
+                <div class="col-4 col-sm-auto">
+                    <div class="d-flex align-items-center gap-2 pe-sm-4">
+                        <span class="apex-crest" style="width: 38px; height: 38px; color: var(--apex-mint);"><i class="bi bi-people-fill"></i></span>
+                        <div>
+                            <div class="apex-display fw-bold fs-4 text-white lh-1 apex-tabular">@(activeTour?.MaxTeams ?? 8)</div>
+                            <div class="apex-label-caps text-muted" style="font-size: 0.7rem;">Đội tuyển</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4 col-sm-auto">
+                    <div class="d-flex align-items-center gap-2 pe-sm-4">
+                        <span class="apex-crest" style="width: 38px; height: 38px; color: var(--apex-pink-soft);"><i class="bi bi-trophy-fill"></i></span>
+                        <div>
+                            <div class="apex-display fw-bold fs-4 text-white lh-1 apex-tabular">@matches.Count</div>
+                            <div class="apex-label-caps text-muted" style="font-size: 0.7rem;">Trận nổi bật</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4 col-sm-auto">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="apex-crest" style="width: 38px; height: 38px; color: var(--apex-violet-soft);"><i class="bi bi-geo-alt-fill"></i></span>
+                        <div>
+                            <div class="apex-display fw-bold fs-4 text-white lh-1 apex-tabular">FPT</div>
+                            <div class="apex-label-caps text-muted" style="font-size: 0.7rem;">Sân Campus</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spotlight Match Card -->
+        <div class="col-lg-4">
+            @if (featuredMatch != null)
+            {
+                <div class="apex-panel p-4" style="background: rgba(28, 5, 31, 0.85);">
+                    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom" style="border-color: var(--apex-border) !important;">
+                        <span class="apex-label-caps" style="color: var(--apex-mint);">Tâm điểm hôm nay</span>
+                        <match-status status="@featuredMatch.Status"></match-status>
+                    </div>
+                    <div class="row align-items-center text-center g-2 my-2">
+                        <div class="col-4">
+                            <div class="apex-crest mx-auto mb-2">@Monogram(featuredMatch.HomeTeamName)</div>
+                            <div class="small fw-bold text-white text-truncate" title="@featuredMatch.HomeTeamName">@featuredMatch.HomeTeamName</div>
+                        </div>
+                        <div class="col-4">
+                            @if (featuredMatch.Status == "Completed" || featuredMatch.Status == "InProgress")
+                            {
+                                <div class="apex-score @(featuredMatch.Status == "InProgress" ? "apex-score--live" : "")">
+                                    @featuredMatch.HomeScore-@featuredMatch.AwayScore
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="apex-display fw-bold fs-3 text-white">VS</div>
+                            }
+                            <div class="apex-label-caps text-muted mt-1">@featuredMatch.MatchDateTime.ToString("HH:mm")</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="apex-crest mx-auto mb-2">@Monogram(featuredMatch.AwayTeamName)</div>
+                            <div class="small fw-bold text-white text-truncate" title="@featuredMatch.AwayTeamName">@featuredMatch.AwayTeamName</div>
+                        </div>
+                    </div>
+                    <div class="pt-3 mt-3 border-top d-flex justify-content-between align-items-center" style="border-color: var(--apex-border-subtle) !important;">
+                        <small class="text-muted text-truncate me-2">@featuredMatch.RoundName</small>
+                        <a asp-controller="Matches" asp-action="Details" asp-route-id="@featuredMatch.MatchId" class="btn btn-sm btn-apex-primary px-3">
+                            Xem diễn biến
+                        </a>
+                    </div>
+                </div>
+            }
+            else if (activeTour != null)
+            {
+                <div class="apex-panel p-4" style="background: rgba(28, 5, 31, 0.85);">
+                    <div class="apex-label-caps mb-2" style="color: var(--apex-mint);">Mùa giải hiện tại</div>
+                    <h3 class="h4 apex-display fw-bold mb-2">@activeTour.RegisteredTeamsCount / @activeTour.MaxTeams đội đã duyệt</h3>
+                    <p class="small text-muted mb-0 apex-tabular">
+                        Thời gian: @activeTour.StartDate.ToString("dd/MM/yyyy") – @activeTour.EndDate.ToString("dd/MM/yyyy")
+                    </p>
+                </div>
+            }
         </div>
     </div>
-</div>
+</section>
 
-<div class="row g-4">
-    <!-- Cột Trái: Trận Đấu Tâm Điểm -->
+<!-- Match Hub & Operations (2 Columns) -->
+<div class="row g-4 align-items-start">
+    <!-- Left: Trận đấu nổi bật -->
     <div class="col-lg-8">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0 text-dark">
-                <i class="bi bi-lightning-charge-fill text-warning me-2"></i>Trận Đấu Nổi Bật
-            </h4>
-            <a asp-controller="Matches" asp-action="Index" class="text-decoration-none fw-bold small">
-                Xem tất cả lịch đấu <i class="bi bi-arrow-right"></i>
+        <div class="apex-section-bar">
+            <h2 class="apex-section-title">
+                <span class="apex-section-accent"></span>
+                <span>Trận đấu nổi bật</span>
+            </h2>
+            <a asp-controller="Matches" asp-action="Index" class="text-decoration-none apex-label-caps" style="color: var(--apex-mint);">
+                Xem tất cả lịch đấu <i class="bi bi-arrow-right ms-1"></i>
             </a>
         </div>
 
         @if (matches.Any())
         {
-            <div class="row">
+            <div class="row g-3 mb-3">
                 @foreach (var match in matches)
                 {
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-6">
                         @await Html.PartialAsync("_MatchScoreCardPartial", match)
                     </div>
                 }
@@ -51,58 +153,85 @@
         }
         else
         {
-            <div class="card shadow-sm border-0 p-4 text-center text-muted">
-                <i class="bi bi-calendar-x fs-1 mb-2"></i>
-                <p class="mb-0">Chưa có trận đấu nào được lên lịch.</p>
+            <div class="apex-panel p-5 text-center text-muted mb-3">
+                <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
+                <p class="mb-2">Chưa có trận đấu nào được lên lịch.</p>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Admin" asp-action="Matches" class="btn btn-sm btn-apex-primary">Lập lịch trận đấu</a>
+                }
             </div>
         }
+
+        <!-- Fair-Play Banner -->
+        <div class="apex-panel p-3 px-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="apex-crest" style="color: var(--apex-pink-soft);"><i class="bi bi-award-fill"></i></span>
+                <div>
+                    <div class="apex-display fw-bold fs-5 text-white">HỆ THỐNG PHẠT THẺ &amp; FAIR-PLAY SFLMS</div>
+                    <small class="text-muted">Quy chế tự động trừ điểm tích lũy (-1đ thẻ vàng, -3đ thẻ đỏ) làm chỉ số phụ xếp hạng.</small>
+                </div>
+            </div>
+            <a asp-controller="Standings" asp-action="Index" class="btn btn-sm btn-apex-ghost flex-shrink-0">Xem bảng xếp hạng</a>
+        </div>
     </div>
 
-    <!-- Cột Phải: Top Ghi Bàn & Đăng Ký Đội -->
-    <div class="col-lg-4">
-        <!-- Top Ghi Bàn -->
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
-            <div class="card-header bg-dark text-white py-3 rounded-top-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold text-warning"><i class="bi bi-trophy me-2"></i>Top Ghi Bàn</h5>
-                <span class="badge bg-secondary">Vua Phá Lưới</span>
+    <!-- Right: Vua phá lưới & Đội trưởng CTA -->
+    <div class="col-lg-4 d-flex flex-column gap-4">
+        <!-- Golden Boot -->
+        <div class="apex-panel overflow-hidden">
+            <div class="apex-panel-header">
+                <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
+                    <i class="bi bi-trophy-fill me-2" style="color: var(--apex-pink-soft);"></i>VUA PHÁ LƯỚI
+                </h2>
+                <span class="apex-badge apex-badge--live">Golden Boot</span>
             </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    @if (topScorers.Any())
+            <div class="list-group list-group-flush">
+                @if (topScorers.Any())
+                {
+                    foreach (var scorer in topScorers)
                     {
-                        foreach (var scorer in topScorers)
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                                <div class="d-flex align-items-center">
-                                    <span class="badge @(scorer.Rank == 1 ? "bg-warning text-dark" : "bg-light text-muted border") rounded-circle me-3" style="width: 28px; height: 28px; line-height: 20px;">
-                                        @scorer.Rank
-                                    </span>
-                                    <div>
-                                        <div class="fw-bold">@scorer.FullName <small class="text-muted">(#@scorer.JerseyNumber)</small></div>
-                                        <small class="text-muted">@scorer.TeamName</small>
-                                    </div>
-                                </div>
-                                <span class="badge bg-danger rounded-pill px-3 py-2 fs-6">
-                                    @scorer.GoalsScored <i class="bi bi-bullseye ms-1"></i>
+                        <div class="list-group-item d-flex justify-content-between align-items-center py-3 px-3 border-bottom" style="background: transparent; border-color: var(--apex-border-subtle) !important;">
+                            <div class="d-flex align-items-center gap-3 min-w-0">
+                                <span class="d-inline-flex align-items-center justify-content-center rounded-circle fw-bold apex-tabular flex-shrink-0"
+                                      style="width: 30px; height: 30px; background: @(scorer.Rank == 1 ? "var(--apex-crimson)" : "var(--apex-high)"); color: #fff;">
+                                    @scorer.Rank
                                 </span>
-                            </li>
-                        }
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-white text-truncate">
+                                        @scorer.FullName <span class="text-muted small apex-tabular">#@scorer.JerseyNumber</span>
+                                    </div>
+                                    <small class="text-muted text-truncate d-block">@scorer.TeamName</small>
+                                </div>
+                            </div>
+                            <div class="text-end ms-2 flex-shrink-0">
+                                <div class="apex-display fw-bold fs-4 text-white lh-1 apex-tabular">@scorer.GoalsScored</div>
+                                <span class="apex-label-caps text-muted" style="font-size: 0.65rem;">Bàn</span>
+                            </div>
+                        </div>
                     }
-                    else
-                    {
-                        <li class="list-group-item text-center text-muted py-4">Chưa có thống kê bàn thắng.</li>
-                    }
-                </ul>
+                }
+                else
+                {
+                    <div class="p-4 text-center text-muted small">Chưa có thống kê bàn thắng.</div>
+                }
+            </div>
+            <div class="p-3 text-center border-top" style="border-color: var(--apex-border-subtle) !important;">
+                <a asp-controller="Standings" asp-action="Index" class="btn btn-sm btn-apex-ghost w-100">Xem toàn bộ bảng thống kê</a>
             </div>
         </div>
 
-        <!-- Banner Kêu gọi Đăng ký Đội bóng -->
-        <div class="card border-0 rounded-4 shadow-sm text-center p-4" style="background: linear-gradient(180deg, #f8f9fa, #e9ecef);">
-            <div class="fs-1 text-primary mb-2"><i class="bi bi-people-fill"></i></div>
-            <h5 class="fw-bold">Bạn là Đội Trưởng?</h5>
-            <p class="text-muted small">Hãy tạo tài khoản, đăng ký đội hình và nộp hồ sơ tham gia mùa giải ngay hôm nay!</p>
-            <a asp-controller="MyTeam" asp-action="Dashboard" class="btn btn-primary fw-bold">
-                <i class="bi bi-shield-plus me-1"></i> Quản Lý Đội Bóng
+        <!-- Captain CTA Card -->
+        <div class="apex-panel p-4" style="background: linear-gradient(155deg, rgba(121, 0, 226, 0.25), rgba(47, 22, 49, 0.88)); border-color: rgba(216, 185, 255, 0.25);">
+            <div class="apex-label-caps mb-2" style="color: var(--apex-cyan);">
+                <i class="bi bi-shield-shaded me-1"></i> Dành cho đội trưởng
+            </div>
+            <h3 class="apex-display fw-bold fs-2 text-white mb-2">BẠN LÀ ĐỘI TRƯỞNG?</h3>
+            <p class="small text-muted mb-4">
+                Khởi tạo đội bóng, đăng ký danh sách từ 7–15 cầu thủ (có ít nhất 1 Thủ môn GK) và nộp hồ sơ tham dự giải đấu ngay hôm nay.
+            </p>
+            <a asp-controller="MyTeam" asp-action="Dashboard" class="btn btn-apex-primary w-100 py-2">
+                <i class="bi bi-shield-plus me-1"></i> Quản lý đội bóng ngay
             </a>
         </div>
     </div>

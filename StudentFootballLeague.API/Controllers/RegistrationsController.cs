@@ -71,7 +71,7 @@ namespace StudentFootballLeague.API.Controllers
             var reg = await _context.TeamRegistrations
                 .Include(r => r.Tournament)
                 .Include(r => r.Team)
-                    .ThenInclude(t => t!.Players)
+                    .ThenInclude(t => t!.Players.Where(p => p.IsActive))
                 .FirstOrDefaultAsync(r => r.RegistrationId == id);
 
             if (reg == null)
@@ -83,12 +83,13 @@ namespace StudentFootballLeague.API.Controllers
             {
                 if (reg.Team != null && reg.Tournament != null)
                 {
-                    if (reg.Team.Players.Count < reg.Tournament.MinPlayersPerTeam)
+                    var activePlayers = reg.Team.Players.Where(p => p.IsActive).ToList();
+                    if (activePlayers.Count < reg.Tournament.MinPlayersPerTeam)
                     {
-                        return BadRequest(new { message = $"Đội bóng không đủ điều kiện duyệt: cần tối thiểu {reg.Tournament.MinPlayersPerTeam} cầu thủ, hiện chỉ có {reg.Team.Players.Count} cầu thủ." });
+                        return BadRequest(new { message = $"Đội bóng không đủ điều kiện duyệt: cần tối thiểu {reg.Tournament.MinPlayersPerTeam} cầu thủ, hiện chỉ có {activePlayers.Count} cầu thủ." });
                     }
 
-                    if (!reg.Team.Players.Any(p => p.Position == "GK"))
+                    if (!activePlayers.Any(p => p.Position == "GK"))
                     {
                         return BadRequest(new { message = "Đội bóng không đủ điều kiện duyệt: chưa có Thủ môn (GK)." });
                     }

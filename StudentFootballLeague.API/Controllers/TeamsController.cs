@@ -29,7 +29,7 @@ namespace StudentFootballLeague.API.Controllers
         {
             return _context.Teams
                 .Include(t => t.Manager)
-                .Include(t => t.Players)
+                .Include(t => t.Players.Where(p => p.IsActive))
                 .AsQueryable();
         }
 
@@ -38,7 +38,7 @@ namespace StudentFootballLeague.API.Controllers
         {
             var team = await _context.Teams
                 .Include(t => t.Manager)
-                .Include(t => t.Players)
+                .Include(t => t.Players.Where(p => p.IsActive))
                 .FirstOrDefaultAsync(t => t.TeamId == id);
 
             if (team == null)
@@ -56,7 +56,7 @@ namespace StudentFootballLeague.API.Controllers
                 ManagerEmail = team.Manager != null ? team.Manager.Email : "",
                 team.HomeKitColor,
                 team.CreatedAt,
-                Players = team.Players.Select(p => new
+                Players = team.Players.Where(p => p.IsActive).Select(p => new
                 {
                     p.PlayerId,
                     p.StudentCode,
@@ -80,7 +80,7 @@ namespace StudentFootballLeague.API.Controllers
             }
 
             var team = await _context.Teams
-                .Include(t => t.Players)
+                .Include(t => t.Players.Where(p => p.IsActive))
                 .Include(t => t.Registrations)
                     .ThenInclude(r => r.Tournament)
                 .FirstOrDefaultAsync(t => t.ManagerId == userId);

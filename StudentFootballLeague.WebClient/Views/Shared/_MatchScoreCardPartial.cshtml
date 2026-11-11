@@ -1,58 +1,72 @@
 @model StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto
+@{
+    var isLive = string.Equals(Model.Status, "InProgress", System.StringComparison.OrdinalIgnoreCase);
+    var showScore = isLive || string.Equals(Model.Status, "Completed", System.StringComparison.OrdinalIgnoreCase);
+    string Monogram(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "FC";
+        var parts = name.Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Substring(0, System.Math.Min(2, name.Length)).ToUpper();
+    }
+}
 
-<div class="card shadow-sm mb-3 border-0 rounded-3">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-        <small class="text-muted fw-bold">
-            <i class="bi bi-calendar-event me-1"></i> @Model.RoundName 
+<article class="apex-match-card @(isLive ? "apex-match-card--live" : "") h-100 d-flex flex-column overflow-hidden">
+    <div class="px-3 py-2 d-flex justify-content-between align-items-center gap-2 border-bottom" style="border-color: var(--apex-border-subtle) !important; background: rgba(28, 5, 31, 0.45);">
+        <div class="apex-label-caps text-muted text-truncate">
+            <span>@Model.RoundName</span>
             @if (!string.IsNullOrEmpty(Model.GroupName))
             {
-                <span class="badge bg-primary ms-1">@Model.GroupName</span>
+                <span class="mx-1">•</span>
+                <span style="color: var(--apex-violet-soft);">@Model.GroupName</span>
             }
-        </small>
+        </div>
         <match-status status="@Model.Status"></match-status>
     </div>
-    <div class="card-body p-3">
-        <div class="row align-items-center text-center">
-            <!-- Đội Nhà -->
-            <div class="col-4">
-                <div class="fw-bold text-truncate" title="@Model.HomeTeamName">@Model.HomeTeamName</div>
-                <small class="text-muted d-block">(Chủ nhà)</small>
+
+    <div class="p-3 p-md-4 flex-grow-1 d-flex align-items-center">
+        <div class="row w-100 align-items-center text-center g-2 mx-0">
+            <div class="col-4 px-1 d-flex flex-column align-items-center">
+                <div class="apex-crest mb-2">@Monogram(Model.HomeTeamName)</div>
+                <div class="fw-bold text-white small text-truncate w-100" title="@Model.HomeTeamName">@Model.HomeTeamName</div>
+                <small class="text-muted" style="font-size: 0.72rem;">Chủ nhà</small>
             </div>
 
-            <!-- Tỷ số hoặc Giờ thi đấu -->
-            <div class="col-4">
-                @if (Model.Status == "Completed" || Model.Status == "InProgress")
+            <div class="col-4 px-1">
+                @if (showScore)
                 {
-                    <div class="fs-3 fw-bold text-danger">
-                        @Model.HomeScore - @Model.AwayScore
+                    <div class="apex-score @(isLive ? "apex-score--live" : "")">
+                        @Model.HomeScore <span class="text-muted" style="font-size: 1.4rem;">-</span> @Model.AwayScore
                     </div>
                     @if (Model.HomePenalty.HasValue && Model.AwayPenalty.HasValue)
                     {
-                        <small class="text-muted d-block">(Pen: @Model.HomePenalty - @Model.AwayPenalty)</small>
+                        <small class="d-block mt-1 apex-tabular" style="color: var(--apex-violet-soft);">Pen @Model.HomePenalty - @Model.AwayPenalty</small>
                     }
+                    <div class="apex-label-caps mt-1" style="color: @(isLive ? "var(--apex-mint)" : "var(--apex-muted)");">
+                        @(isLive ? "LIVE" : "FT")
+                    </div>
                 }
                 else
                 {
-                    <div class="badge bg-light text-dark fs-6 border py-2 px-3">VS</div>
+                    <div class="apex-display fw-bold fs-4 text-white">VS</div>
+                    <div class="apex-label-caps text-muted">@Model.MatchDateTime.ToString("HH:mm")</div>
                 }
-                <div class="small text-muted mt-1">
-                    <i class="bi bi-clock me-1"></i>@Model.MatchDateTime.ToString("HH:mm - dd/MM/yyyy")
-                </div>
             </div>
 
-            <!-- Đội Khách -->
-            <div class="col-4">
-                <div class="fw-bold text-truncate" title="@Model.AwayTeamName">@Model.AwayTeamName</div>
-                <small class="text-muted d-block">(Đội khách)</small>
+            <div class="col-4 px-1 d-flex flex-column align-items-center">
+                <div class="apex-crest mb-2">@Monogram(Model.AwayTeamName)</div>
+                <div class="fw-bold text-white small text-truncate w-100" title="@Model.AwayTeamName">@Model.AwayTeamName</div>
+                <small class="text-muted" style="font-size: 0.72rem;">Đội khách</small>
             </div>
         </div>
     </div>
-    <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center py-2">
-        <small class="text-muted">
-            <i class="bi bi-geo-alt me-1"></i>@Model.PitchName
+
+    <div class="px-3 py-2 border-top d-flex justify-content-between align-items-center gap-2" style="border-color: var(--apex-border-subtle) !important; background: rgba(28, 5, 31, 0.35);">
+        <small class="text-muted text-truncate apex-tabular" style="min-width: 0;" title="@Model.PitchName">
+            <i class="bi bi-geo-alt me-1" style="color: var(--apex-mint);"></i>@Model.PitchName • @Model.MatchDateTime.ToString("dd/MM")
         </small>
-        <a asp-controller="Matches" asp-action="Details" asp-route-id="@Model.MatchId" class="btn btn-sm btn-outline-primary">
-            Chi tiết trận <i class="bi bi-chevron-right ms-1"></i>
+        <a asp-controller="Matches" asp-action="Details" asp-route-id="@Model.MatchId" class="btn btn-sm @(isLive ? "btn-apex-primary" : "btn-apex-violet") flex-shrink-0 px-3">
+            Chi tiết trận
         </a>
     </div>
-</div>
+</article>
