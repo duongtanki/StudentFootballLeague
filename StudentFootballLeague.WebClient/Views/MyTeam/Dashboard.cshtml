@@ -271,6 +271,81 @@ else
     </div>
 
     @await Html.PartialAsync("_PlayerFormModalPartial", new StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto())
+
+    <!-- Modal Chỉnh Sửa Cầu Thủ -->
+    <div class="modal fade" id="editPlayerModal" tabindex="-1" aria-labelledby="editPlayerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-controller="MyTeam" asp-action="EditPlayer" method="post">
+                    <input type="hidden" id="editPlayerId" name="id" />
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="editPlayerModalLabel"><i class="bi bi-pencil-square me-2"></i>Chỉnh Sửa Thông Tin Cầu Thủ</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="editStudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="Ví dụ: HE180101" pattern="^[A-Z]{2}\d{6}$" required />
+                            <small class="text-muted">Định dạng gồm 2 chữ cái viết hoa và 6 chữ số (VD: HE180101)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editFullName" class="form-label fw-bold">Họ và tên cầu thủ <span class="text-danger">*</span></label>
+                            <input type="text" id="editFullName" name="FullName" class="form-control" maxlength="100" required />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editJerseyNumber" class="form-label fw-bold">Số áo thi đấu (1-99) <span class="text-danger">*</span></label>
+                                <input type="number" id="editJerseyNumber" name="JerseyNumber" min="1" max="99" class="form-control" required />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editPosition" class="form-label fw-bold">Vị trí thi đấu <span class="text-danger">*</span></label>
+                                <select id="editPosition" name="Position" class="form-select" required>
+                                    <option value="GK">Thủ môn (GK)</option>
+                                    <option value="DF">Hậu vệ (DF)</option>
+                                    <option value="MF">Tiền vệ (MF)</option>
+                                    <option value="FW">Tiền đạo (FW)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editDateOfBirth" class="form-label fw-bold">Ngày sinh <span class="text-danger">*</span></label>
+                            <input type="date" id="editDateOfBirth" name="DateOfBirth" class="form-control" required />
+                        </div>
+
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive" value="true" checked />
+                            <input type="hidden" name="IsActive" value="false" />
+                            <label class="form-check-label fw-bold" for="editIsActive">Đủ điều kiện thi đấu (Đang hoạt động)</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Thay Đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const editButtons = document.querySelectorAll('.btn-edit-player');
+            editButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    document.getElementById('editPlayerId').value = this.dataset.playerId;
+                    document.getElementById('editStudentCode').value = this.dataset.studentCode;
+                    document.getElementById('editFullName').value = this.dataset.fullName;
+                    document.getElementById('editJerseyNumber').value = this.dataset.jerseyNumber;
+                    document.getElementById('editPosition').value = this.dataset.position;
+                    document.getElementById('editDateOfBirth').value = this.dataset.dob;
+                    document.getElementById('editIsActive').checked = this.dataset.isActive === 'true';
+                });
+            });
+        });
+    </script>
 }
 
 @section Scripts {
