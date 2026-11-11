@@ -93,10 +93,6 @@
                         {
                             <tr class="text-center">
                                 <td class="text-start fw-bold">
-                                    @if (!string.IsNullOrEmpty(reg.LogoUrl))
-                                    {
-                                        <img src="@reg.LogoUrl" alt="logo" class="rounded-circle me-2" style="width: 24px; height: 24px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
-                                    }
                                     @reg.TeamName
                                 </td>
                                 <td>@reg.TournamentName</td>

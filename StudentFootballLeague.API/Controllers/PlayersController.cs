@@ -48,7 +48,6 @@ namespace StudentFootballLeague.API.Controllers
                     DateOfBirth = p.DateOfBirth,
                     JerseyNumber = p.JerseyNumber,
                     Position = p.Position,
-                    AvatarUrl = p.AvatarUrl,
                     IsActive = p.IsActive,
                     CreatedAt = p.CreatedAt
                 })
@@ -102,7 +101,6 @@ namespace StudentFootballLeague.API.Controllers
                 DateOfBirth = dto.DateOfBirth,
                 JerseyNumber = dto.JerseyNumber,
                 Position = dto.Position,
-                AvatarUrl = dto.AvatarUrl,
                 IsActive = true
             };
 
@@ -154,10 +152,6 @@ namespace StudentFootballLeague.API.Controllers
             player.JerseyNumber = dto.JerseyNumber;
             player.Position = dto.Position;
             player.IsActive = dto.IsActive;
-            if (!string.IsNullOrEmpty(dto.AvatarUrl))
-            {
-                player.AvatarUrl = dto.AvatarUrl;
-            }
 
             await _context.SaveChangesAsync();
 

@@ -139,7 +139,6 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 {
                     TeamId = r.TeamId,
                     TeamName = r.Team != null ? r.Team.TeamName : "",
-                    LogoUrl = r.Team != null ? r.Team.LogoUrl : null,
                     GroupName = r.GroupName,
                     MatchesPlayed = r.MatchesPlayed,
                     Wins = r.Wins,
@@ -176,7 +175,6 @@ namespace StudentFootballLeague.BusinessLogic.Services
                     Position = ps.Position,
                     TeamId = ps.TeamId,
                     TeamName = ps.TeamName,
-                    LogoUrl = ps.LogoUrl,
                     GoalsScored = ps.GoalsScored,
                     YellowCards = ps.YellowCards,
                     RedCards = ps.RedCards

@@ -14,8 +14,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         [StringLength(100)]
         public string FacultyOrClub { get; set; } = string.Empty;
 
-        public string? LogoUrl { get; set; }
-
         [Required(ErrorMessage = "Màu áo thi đấu chính là bắt buộc")]
         [StringLength(50)]
         public string HomeKitColor { get; set; } = string.Empty;
@@ -30,7 +28,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
         public string FacultyOrClub { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public int ManagerId { get; set; }
         public string ManagerName { get; set; } = string.Empty;
         public string ManagerEmail { get; set; } = string.Empty;
@@ -62,7 +59,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public string TournamentName { get; set; } = string.Empty;
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public string? GroupName { get; set; }
         public string ApprovalStatus { get; set; } = string.Empty;
         public string? RejectReason { get; set; }

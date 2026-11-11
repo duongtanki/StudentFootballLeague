@@ -151,7 +151,7 @@ namespace StudentFootballLeague.API.Controllers
                 user.PhoneNumber,
                 user.StudentCode,
                 user.Role,
-                ManagedTeam = user.ManagedTeams.Select(t => new { t.TeamId, t.TeamName, t.LogoUrl }).FirstOrDefault()
+                ManagedTeam = user.ManagedTeams.Select(t => new { t.TeamId, t.TeamName }).FirstOrDefault()
             });
         }
     }

@@ -8,7 +8,6 @@ namespace StudentFootballLeague.DataAccess.Entities
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
         public string FacultyOrClub { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public int ManagerId { get; set; }
         public string HomeKitColor { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

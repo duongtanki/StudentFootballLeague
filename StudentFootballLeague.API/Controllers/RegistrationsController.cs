@@ -41,7 +41,6 @@ namespace StudentFootballLeague.API.Controllers
                     TournamentName = r.Tournament != null ? r.Tournament.Name : "",
                     TeamId = r.TeamId,
                     TeamName = r.Team != null ? r.Team.TeamName : "",
-                    LogoUrl = r.Team != null ? r.Team.LogoUrl : null,
                     GroupName = r.GroupName,
                     ApprovalStatus = r.ApprovalStatus,
                     RejectReason = r.RejectReason,

@@ -11,7 +11,6 @@ namespace StudentFootballLeague.DataAccess.Entities
         public string Position { get; set; } = string.Empty;
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public int TournamentId { get; set; }
         public int GoalsScored { get; set; }
         public int YellowCards { get; set; }

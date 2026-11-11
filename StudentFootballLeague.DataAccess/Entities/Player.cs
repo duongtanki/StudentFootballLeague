@@ -12,7 +12,6 @@ namespace StudentFootballLeague.DataAccess.Entities
         public DateTime DateOfBirth { get; set; }
         public int JerseyNumber { get; set; }
         public string Position { get; set; } = "MF"; // GK, DF, MF, FW
-        public string? AvatarUrl { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -31,10 +31,6 @@
         <div class="row align-items-center text-center">
             <!-- Đội Nhà -->
             <div class="col-5">
-                @if (!string.IsNullOrEmpty(Model.HomeTeamLogo))
-                {
-                    <img src="@Model.HomeTeamLogo" alt="logo" class="mb-2 rounded-circle shadow-sm" style="width: 64px; height: 64px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
-                }
                 <h4 class="fw-bold mb-0">@Model.HomeTeamName</h4>
                 <span class="badge bg-primary mt-1">Đội nhà</span>
             </div>
@@ -58,10 +54,6 @@
 
             <!-- Đội Khách -->
             <div class="col-5">
-                @if (!string.IsNullOrEmpty(Model.AwayTeamLogo))
-                {
-                    <img src="@Model.AwayTeamLogo" alt="logo" class="mb-2 rounded-circle shadow-sm" style="width: 64px; height: 64px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
-                }
                 <h4 class="fw-bold mb-0">@Model.AwayTeamName</h4>
                 <span class="badge bg-secondary mt-1">Đội khách</span>
             </div>

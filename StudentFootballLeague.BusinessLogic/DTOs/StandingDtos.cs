@@ -7,7 +7,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public int Rank { get; set; }
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public string? GroupName { get; set; }
         public int MatchesPlayed { get; set; }
         public int Wins { get; set; }
@@ -30,7 +29,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public string Position { get; set; } = string.Empty;
         public int TeamId { get; set; }
         public string TeamName { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
         public int GoalsScored { get; set; }
         public int YellowCards { get; set; }
         public int RedCards { get; set; }

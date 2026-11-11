@@ -51,7 +51,6 @@ namespace StudentFootballLeague.API.Controllers
                 team.TeamId,
                 team.TeamName,
                 team.FacultyOrClub,
-                team.LogoUrl,
                 team.ManagerId,
                 ManagerName = team.Manager != null ? team.Manager.FullName : "",
                 ManagerEmail = team.Manager != null ? team.Manager.Email : "",
@@ -65,7 +64,6 @@ namespace StudentFootballLeague.API.Controllers
                     p.DateOfBirth,
                     p.JerseyNumber,
                     p.Position,
-                    p.AvatarUrl,
                     p.IsActive
                 })
             });
@@ -126,7 +124,6 @@ namespace StudentFootballLeague.API.Controllers
             {
                 TeamName = dto.TeamName,
                 FacultyOrClub = dto.FacultyOrClub,
-                LogoUrl = dto.LogoUrl,
                 ManagerId = userId,
                 HomeKitColor = dto.HomeKitColor
             };
@@ -162,10 +159,6 @@ namespace StudentFootballLeague.API.Controllers
 
             team.TeamName = dto.TeamName;
             team.FacultyOrClub = dto.FacultyOrClub;
-            if (!string.IsNullOrEmpty(dto.LogoUrl))
-            {
-                team.LogoUrl = dto.LogoUrl;
-            }
             team.HomeKitColor = dto.HomeKitColor;
 
             await _context.SaveChangesAsync();

@@ -23,8 +23,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         [Required(ErrorMessage = "Vị trí thi đấu là bắt buộc")]
         [RegularExpression(@"^(GK|DF|MF|FW)$", ErrorMessage = "Vị trí chỉ có thể là GK, DF, MF hoặc FW")]
         public string Position { get; set; } = "MF";
-
-        public string? AvatarUrl { get; set; }
     }
 
     public class PlayerUpdateDto : PlayerCreateDto
@@ -42,7 +40,6 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public DateTime DateOfBirth { get; set; }
         public int JerseyNumber { get; set; }
         public string Position { get; set; } = string.Empty;
-        public string? AvatarUrl { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
     }

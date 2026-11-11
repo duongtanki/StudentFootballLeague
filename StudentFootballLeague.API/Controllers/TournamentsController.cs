@@ -87,7 +87,6 @@ namespace StudentFootballLeague.API.Controllers
                     r.RegistrationId,
                     r.TeamId,
                     TeamName = r.Team != null ? r.Team.TeamName : "",
-                    LogoUrl = r.Team != null ? r.Team.LogoUrl : null,
                     r.GroupName,
                     r.ApprovalStatus,
                     r.RejectReason,

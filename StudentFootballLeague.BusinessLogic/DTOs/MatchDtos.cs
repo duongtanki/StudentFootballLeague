@@ -99,11 +99,9 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
 
         public int HomeTeamId { get; set; }
         public string HomeTeamName { get; set; } = string.Empty;
-        public string? HomeTeamLogo { get; set; }
 
         public int AwayTeamId { get; set; }
         public string AwayTeamName { get; set; } = string.Empty;
-        public string? AwayTeamLogo { get; set; }
 
         public DateTime MatchDateTime { get; set; }
         public string PitchName { get; set; } = string.Empty;

@@ -2,73 +2,440 @@
 @{
     ViewData["Title"] = "Lịch thi đấu & Kết quả";
     var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
+    var availableGroups = ViewBag.AvailableGroups as List<string> ?? new List<string>();
+    var availableRounds = ViewBag.AvailableRounds as List<string> ?? new List<string>();
+
+    int? selectedTournament = ViewBag.SelectedTournament as int?;
+    string selectedStatus = ViewBag.SelectedStatus as string ?? "all";
+    string? selectedGroup = ViewBag.SelectedGroup as string;
+    string? selectedRound = ViewBag.SelectedRound as string;
+
+    var groupedByDate = (Model ?? Enumerable.Empty<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>())
+        .GroupBy(m => m.MatchDateTime.Date)
+        .OrderByDescending(g => g.Key)
+        .ToList();
+
+    string FormatVietnameseDate(DateTime date)
+    {
+        var dayOfWeek = date.DayOfWeek switch
+        {
+            DayOfWeek.Monday => "Thứ Hai",
+            DayOfWeek.Tuesday => "Thứ Ba",
+            DayOfWeek.Wednesday => "Thứ Tư",
+            DayOfWeek.Thursday => "Thứ Năm",
+            DayOfWeek.Friday => "Thứ Sáu",
+            DayOfWeek.Saturday => "Thứ Bảy",
+            DayOfWeek.Sunday => "Chủ Nhật",
+            _ => ""
+        };
+        return $"{dayOfWeek}, {date:dd} tháng {date:MM}";
+    }
+
+    string FormatGroupName(string? groupName)
+    {
+        if (string.IsNullOrWhiteSpace(groupName)) return "";
+        if (groupName.StartsWith("Group ", StringComparison.OrdinalIgnoreCase))
+            return "Bảng " + groupName.Substring(6);
+        return groupName;
+    }
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h3 class="fw-bold text-dark mb-1"><i class="bi bi-calendar3 me-2 text-primary"></i>Lịch Thi Đấu & Kết Quả</h3>
-        <p class="text-muted mb-0">Theo dõi tỷ số trực tiếp, lịch thi đấu vòng bảng và vòng loại trực tiếp</p>
-    </div>
-</div>
+<style>
+    .schedule-page {
+        background-color: #fbfaf6;
+        border-radius: 20px;
+        padding: 2rem 2.25rem;
+    }
 
-<!-- Bộ lọc tìm kiếm OData -->
-<div class="card shadow-sm border-0 rounded-4 mb-4">
-    <div class="card-body p-3">
-        <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small fw-bold">Mùa giải</label>
-                <select name="tournamentId" class="form-select form-select-sm">
-                    <option value="">-- Tất cả mùa giải --</option>
+    .schedule-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #2f5d27;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+
+    .schedule-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.35rem;
+    }
+
+    .schedule-subtitle {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+
+    .tournament-pill-select {
+        background-color: #ffffff;
+        border: 1px solid #ece7dc;
+        border-radius: 12px;
+        padding: 0.55rem 2.2rem 0.55rem 1.1rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: #0f172a;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        cursor: pointer;
+    }
+
+    .schedule-filter-bar {
+        background-color: #ffffff;
+        border: 1px solid #ece7dc;
+        border-radius: 14px;
+        padding: 0.65rem 1.15rem;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+
+    .status-tab {
+        display: inline-block;
+        padding: 0.48rem 1.1rem;
+        border-radius: 10px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #1e293b;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .status-tab:hover {
+        background-color: #f3efe6;
+        color: #0f172a;
+    }
+
+    .status-tab.active {
+        background-color: #d9edd4;
+        color: #1f4d18;
+    }
+
+    .inline-filter-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-right: 0.25rem;
+    }
+
+    .inline-filter-select {
+        border: none;
+        background: transparent;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #0f172a;
+        padding: 0.25rem 1.5rem 0.25rem 0.25rem;
+        cursor: pointer;
+        width: auto;
+        display: inline-block;
+    }
+
+    .inline-filter-select:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
+    .reset-filter-link {
+        color: #2f5d27;
+        font-weight: 700;
+        font-size: 0.88rem;
+        text-decoration: none;
+    }
+
+    .reset-filter-link:hover {
+        text-decoration: underline;
+        color: #1f4d18;
+    }
+
+    .date-group-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .date-group-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .round-pill {
+        background-color: #f3efe6;
+        color: #57534e;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 0.35rem 1rem;
+        border-radius: 999px;
+    }
+
+    .match-row-card {
+        background-color: #ffffff;
+        border: 1px solid #ece7dc;
+        border-radius: 14px;
+        padding: 1.25rem 1.75rem;
+        margin-bottom: 0.85rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .match-row-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .match-time-big {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
+    }
+
+    .match-pitch-sub {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #78716c;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: 0.2rem;
+    }
+
+    .match-team-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .vs-pill {
+        display: inline-block;
+        background-color: #f3efe6;
+        color: #1e293b;
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 0.32rem 1.15rem;
+        border-radius: 999px;
+        text-transform: lowercase;
+    }
+
+    .final-score-pill {
+        display: inline-block;
+        background-color: #0f172a;
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 800;
+        padding: 0.32rem 1.05rem;
+        border-radius: 999px;
+        letter-spacing: 0.03em;
+    }
+
+    .live-score-pill {
+        display: inline-block;
+        background-color: #fee2e2;
+        color: #b91c1c;
+        font-size: 0.95rem;
+        font-weight: 800;
+        padding: 0.32rem 1.05rem;
+        border-radius: 999px;
+    }
+
+    .detail-arrow-link {
+        color: #2f5d27;
+        font-weight: 700;
+        font-size: 0.88rem;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .detail-arrow-link:hover {
+        color: #1f4d18;
+        text-decoration: underline;
+    }
+
+    .completed-status-link {
+        color: #475569;
+        font-weight: 700;
+        font-size: 0.88rem;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .completed-status-link:hover {
+        color: #2f5d27;
+        text-decoration: underline;
+    }
+
+    @@media (max-width: 767.98px) {
+        .schedule-page {
+            padding: 1.25rem 1rem;
+        }
+        .match-row-card {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="schedule-page">
+    <form method="get" id="scheduleFilterForm">
+        <input type="hidden" name="status" value="@selectedStatus" />
+
+        <!-- Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+            <div>
+                <div class="schedule-eyebrow">Theo dõi mùa giải</div>
+                <h1 class="schedule-title">Lịch thi đấu &amp; Kết quả</h1>
+                <p class="schedule-subtitle">Mọi trận cầu, mọi khoảnh khắc. Cập nhật chính thức từ ban tổ chức.</p>
+            </div>
+            <div>
+                <select name="tournamentId" class="form-select tournament-pill-select" onchange="this.form.submit()">
+                    <option value="">Tất cả mùa giải</option>
                     @foreach (var t in tournaments)
                     {
-                        <option value="@t.TournamentId" selected="@(ViewBag.SelectedTournament == t.TournamentId ? "selected" : null)">
-                            @t.Name (@t.Season)
+                        <option value="@t.TournamentId" selected="@(selectedTournament == t.TournamentId ? "selected" : null)">
+                            @t.Name
                         </option>
                     }
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small fw-bold">Bảng đấu</label>
-                <select name="groupName" class="form-select form-select-sm">
-                    <option value="">-- Tất cả bảng --</option>
-                    <option value="Group A" selected="@(ViewBag.SelectedGroup == "Group A" ? "selected" : null)">Bảng A (Group A)</option>
-                    <option value="Group B" selected="@(ViewBag.SelectedGroup == "Group B" ? "selected" : null)">Bảng B (Group B)</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold">Vòng đấu</label>
-                <input type="text" name="roundName" class="form-control form-control-sm" placeholder="VD: Vòng Bảng, Bán Kết..." value="@ViewBag.SelectedRound" />
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold">Tên đội bóng</label>
-                <input type="text" name="searchTeam" class="form-control form-control-sm" placeholder="VD: FC Kỹ Thuật..." value="@ViewBag.SearchTeam" />
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
-                    <i class="bi bi-search"></i> Lọc
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+        </div>
 
-<!-- Danh sách trận đấu -->
-@if (Model != null && Model.Any())
-{
-    <div class="row">
-        @foreach (var match in Model)
-        {
-            <div class="col-md-6 mb-4">
-                @await Html.PartialAsync("_MatchScoreCardPartial", match)
+        <!-- Filter Bar -->
+        <div class="schedule-filter-bar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a class="status-tab @(selectedStatus == "all" ? "active" : "")"
+                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "all", groupName = selectedGroup, roundName = selectedRound })">
+                    Tất cả trận
+                </a>
+                <a class="status-tab @(selectedStatus == "upcoming" ? "active" : "")"
+                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "upcoming", groupName = selectedGroup, roundName = selectedRound })">
+                    Sắp diễn ra
+                </a>
+                <a class="status-tab @(selectedStatus == "completed" ? "active" : "")"
+                   href="@Url.Action("Index", "Matches", new { tournamentId = selectedTournament, status = "completed", groupName = selectedGroup, roundName = selectedRound })">
+                    Đã kết thúc
+                </a>
             </div>
+
+            <div class="d-flex flex-wrap align-items-center gap-4">
+                <div class="d-flex align-items-center">
+                    <span class="inline-filter-label">Bảng:</span>
+                    <select name="groupName" class="form-select inline-filter-select" onchange="this.form.submit()">
+                        <option value="">Tất cả</option>
+                        @foreach (var grp in availableGroups)
+                        {
+                            <option value="@grp" selected="@(string.Equals(selectedGroup, grp, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                                @FormatGroupName(grp)
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="d-flex align-items-center">
+                    <span class="inline-filter-label">Vòng:</span>
+                    <select name="roundName" class="form-select inline-filter-select" onchange="this.form.submit()">
+                        <option value="">Tất cả</option>
+                        @foreach (var rnd in availableRounds)
+                        {
+                            <option value="@rnd" selected="@(string.Equals(selectedRound, rnd, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                                @rnd
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <a href="@Url.Action("Index", "Matches")" class="reset-filter-link">Đặt lại</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Danh sách trận đấu đồng nhất theo ngày & thứ tự giờ -->
+    @if (groupedByDate.Any())
+    {
+        foreach (var dateGroup in groupedByDate)
+        {
+            var matchesInDay = dateGroup.OrderBy(m => m.MatchDateTime).ToList();
+            var distinctRounds = matchesInDay.Select(m => m.RoundName).Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToList();
+
+            <div class="date-group-header">
+                <h2 class="date-group-title">@FormatVietnameseDate(dateGroup.Key)</h2>
+                @if (distinctRounds.Any())
+                {
+                    <span class="round-pill">@string.Join(" · ", distinctRounds)</span>
+                }
+            </div>
+
+            @foreach (var m in matchesInDay)
+            {
+                <div class="match-row-card">
+                    <div class="row align-items-center gy-2">
+                        <div class="col-6 col-md-2">
+                            <div class="match-time-big">@m.MatchDateTime.ToString("HH:mm")</div>
+                            <div class="match-pitch-sub">@m.PitchName</div>
+                        </div>
+
+                        <div class="col-5 col-md-3 text-md-center">
+                            <div class="match-team-name">@m.HomeTeamName</div>
+                        </div>
+
+                        <div class="col-2 col-md-2 text-center">
+                            @if (m.Status == "Completed")
+                            {
+                                <span class="final-score-pill">@(m.HomeScore ?? 0) – @(m.AwayScore ?? 0)</span>
+                                @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
+                                {
+                                    <div class="small text-muted mt-1" style="font-size: 0.72rem;">Pen: @m.HomePenalty – @m.AwayPenalty</div>
+                                }
+                            }
+                            else if (m.Status == "InProgress")
+                            {
+                                <span class="live-score-pill">@(m.HomeScore ?? 0) – @(m.AwayScore ?? 0)</span>
+                                <div class="small text-danger fw-bold mt-1" style="font-size: 0.7rem;">Đang đá</div>
+                            }
+                            else if (m.Status == "Postponed" || m.Status == "Cancelled")
+                            {
+                                <span class="badge bg-secondary rounded-pill">@(m.Status == "Postponed" ? "Tạm hoãn" : "Đã hủy")</span>
+                            }
+                            else
+                            {
+                                <span class="vs-pill">vs</span>
+                            }
+                        </div>
+
+                        <div class="col-5 col-md-3 text-md-center">
+                            <div class="match-team-name">@m.AwayTeamName</div>
+                        </div>
+
+                        <div class="col-6 col-md-2 d-flex justify-content-end align-items-center gap-3">
+                            @if (!string.IsNullOrWhiteSpace(m.GroupName))
+                            {
+                                <span class="text-muted small text-nowrap">@FormatGroupName(m.GroupName)</span>
+                            }
+                            @if (m.Status == "Completed")
+                            {
+                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="completed-status-link">
+                                    Kết thúc <i class="bi bi-arrow-up-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="detail-arrow-link">
+                                    Chi tiết <i class="bi bi-arrow-up-right"></i>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
         }
-    </div>
-}
-else
-{
-    <div class="card shadow-sm border-0 p-5 text-center text-muted">
-        <i class="bi bi-inbox fs-1 mb-2"></i>
-        <h5 class="fw-bold">Không tìm thấy trận đấu nào</h5>
-        <p class="mb-0">Thử thay đổi bộ lọc tìm kiếm hoặc quay lại sau.</p>
-    </div>
-}
+    }
+    else
+    {
+        <div class="bg-white border rounded-4 p-5 text-center text-muted mt-3" style="border-color: #ece7dc !important;">
+            <i class="bi bi-calendar-x fs-1 mb-2 d-block"></i>
+            <h5 class="fw-bold text-dark">Không tìm thấy trận đấu nào</h5>
+            <p class="mb-0">Thử thay đổi bộ lọc trạng thái, bảng đấu hoặc vòng đấu.</p>
+        </div>
+    }
+</div>

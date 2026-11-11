@@ -79,7 +79,6 @@ CREATE TABLE Teams (
     TeamId INT IDENTITY(1,1) PRIMARY KEY,
     TeamName NVARCHAR(100) NOT NULL CONSTRAINT UQ_Teams_Name UNIQUE,
     FacultyOrClub NVARCHAR(100) NOT NULL,
-    LogoUrl VARCHAR(500) NULL,
     ManagerId INT NOT NULL,
     HomeKitColor NVARCHAR(50) NOT NULL,
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Teams_CreatedAt DEFAULT GETDATE(),
@@ -98,7 +97,6 @@ CREATE TABLE Players (
     DateOfBirth DATE NOT NULL,
     JerseyNumber INT NOT NULL CONSTRAINT CK_Players_JerseyNumber CHECK (JerseyNumber BETWEEN 1 AND 99),
     Position VARCHAR(20) NOT NULL CONSTRAINT CK_Players_Position CHECK (Position IN ('GK', 'DF', 'MF', 'FW')),
-    AvatarUrl VARCHAR(500) NULL,
     IsActive BIT NOT NULL CONSTRAINT DF_Players_IsActive DEFAULT 1,
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Players_CreatedAt DEFAULT GETDATE(),
     CONSTRAINT FK_Players_Teams FOREIGN KEY (TeamId) REFERENCES Teams(TeamId) ON DELETE CASCADE,
@@ -134,7 +132,6 @@ GO
 
 -- =====================================================================
 -- 6. BẢNG Matches (Lịch & Kết quả Trận đấu)
--- CÓ BỔ SUNG CỘT GroupName ĐỂ PHỤC VỤ TRUY VẤN ODATA VÀ LỌC THEO BẢNG ĐẤU
 -- =====================================================================
 CREATE TABLE Matches (
     MatchId INT IDENTITY(1,1) PRIMARY KEY,
@@ -192,7 +189,6 @@ SELECT
     p.Position,
     t.TeamId,
     t.TeamName,
-    t.LogoUrl,
     m.TournamentId,
     COUNT(CASE WHEN me.EventType IN ('Goal', 'PenaltyGoal') THEN 1 END) AS GoalsScored,
     COUNT(CASE WHEN me.EventType = 'YellowCard' THEN 1 END) AS YellowCards,
@@ -201,7 +197,7 @@ FROM Players p
 INNER JOIN Teams t ON p.TeamId = t.TeamId
 INNER JOIN MatchEvents me ON p.PlayerId = me.PlayerId
 INNER JOIN Matches m ON me.MatchId = m.MatchId
-GROUP BY p.PlayerId, p.FullName, p.StudentCode, p.JerseyNumber, p.Position, t.TeamId, t.TeamName, t.LogoUrl, m.TournamentId;
+GROUP BY p.PlayerId, p.FullName, p.StudentCode, p.JerseyNumber, p.Position, t.TeamId, t.TeamName, m.TournamentId;
 GO
 
 -- =====================================================================
@@ -227,12 +223,12 @@ VALUES
 GO
 
 -- 3. Teams
-INSERT INTO Teams (TeamName, FacultyOrClub, LogoUrl, ManagerId, HomeKitColor)
+INSERT INTO Teams (TeamName, FacultyOrClub, ManagerId, HomeKitColor)
 VALUES 
-(N'FC Kỹ Thuật Phần Mềm K18', N'Khoa Kỹ thuật Phần mềm (SE)', '/images/logos/fc-se.png', 3, N'Đỏ - Trắng'),
-(N'FC Trí Tuệ Nhân Tạo AI', N'Khoa Trí tuệ Nhân tạo (AI)', '/images/logos/fc-ai.png', 4, N'Xanh Dương'),
-(N'FC Kinh Doanh Quốc Tế IB', N'Khoa Quản trị Kinh doanh (IB)', '/images/logos/fc-ib.png', 5, N'Vàng - Đen'),
-(N'FC Thiết Kế Đồ Họa GD', N'Khoa Thiết kế Mỹ thuật số (GD)', '/images/logos/fc-gd.png', 6, N'Trắng - Tím');
+(N'FC Kỹ Thuật Phần Mềm K18', N'Khoa Kỹ thuật Phần mềm (SE)', 3, N'Đỏ - Trắng'),
+(N'FC Trí Tuệ Nhân Tạo AI', N'Khoa Trí tuệ Nhân tạo (AI)', 4, N'Xanh Dương'),
+(N'FC Kinh Doanh Quốc Tế IB', N'Khoa Quản trị Kinh doanh (IB)', 5, N'Vàng - Đen'),
+(N'FC Thiết Kế Đồ Họa GD', N'Khoa Thiết kế Mỹ thuật số (GD)', 6, N'Trắng - Tím');
 GO
 
 -- 4. Players

@@ -65,7 +65,6 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.Property(t => t.TeamName).HasMaxLength(100).IsRequired();
                 entity.HasIndex(t => t.TeamName).IsUnique();
                 entity.Property(t => t.FacultyOrClub).HasMaxLength(100).IsRequired();
-                entity.Property(t => t.LogoUrl).HasMaxLength(500);
                 entity.Property(t => t.HomeKitColor).HasMaxLength(50).IsRequired();
 
                 entity.HasOne(t => t.Manager)
@@ -85,7 +84,6 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.Property(p => p.StudentCode).HasMaxLength(20).IsRequired();
                 entity.HasIndex(p => p.StudentCode).IsUnique();
                 entity.Property(p => p.Position).HasMaxLength(20).IsRequired();
-                entity.Property(p => p.AvatarUrl).HasMaxLength(500);
 
                 // Cùng 1 đội bóng không được trùng số áo
                 entity.HasIndex(p => new { p.TeamId, p.JerseyNumber }).IsUnique();

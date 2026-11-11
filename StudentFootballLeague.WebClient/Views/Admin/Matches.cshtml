@@ -51,19 +51,11 @@
                                 </td>
                                 <td class="text-start">
                                     <div class="fw-bold text-primary">
-                                        @if (!string.IsNullOrEmpty(m.HomeTeamLogo))
-                                        {
-                                            <img src="@m.HomeTeamLogo" class="rounded-circle me-1" style="width: 20px; height: 20px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
-                                        }
-                                        @m.HomeTeamName
+                                        <i class="bi bi-shield-shaded me-1"></i>@m.HomeTeamName
                                     </div>
                                     <div class="text-muted small ps-4">vs</div>
                                     <div class="fw-bold text-danger">
-                                        @if (!string.IsNullOrEmpty(m.AwayTeamLogo))
-                                        {
-                                            <img src="@m.AwayTeamLogo" class="rounded-circle me-1" style="width: 20px; height: 20px; object-fit: cover;" onerror="this.onerror=null; this.src='/images/default-team.png';" />
-                                        }
-                                        @m.AwayTeamName
+                                        <i class="bi bi-shield me-1"></i>@m.AwayTeamName
                                     </div>
                                 </td>
                                 <td>
