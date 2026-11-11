@@ -24,11 +24,11 @@
                             <input name="FacultyOrClub" class="form-control" placeholder="Ví dụ: Khoa Kỹ thuật Phần mềm (SE)" required />
                         </div>
                         <div class="mb-3">
-                                <label class="form-label fw-bold">Màu áo thi đấu chính <span class="text-danger">*</span></label>
-                                <input name="HomeKitColor" class="form-control" placeholder="Ví dụ: Đỏ - Trắng" required />
-                            </div>
+                            <label class="form-label fw-bold">Màu áo thi đấu chính <span class="text-danger">*</span></label>
+                            <input name="HomeKitColor" class="form-control" placeholder="Ví dụ: Đỏ - Trắng" required />
+                        </div>
                         <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mt-3">
-                            TẠO ĐỘI BÓNG & TIẾP TỤC
+                            TẠO ĐỘI BÓNG &amp; TIẾP TỤC
                         </button>
                     </form>
                 </div>
@@ -40,6 +40,7 @@ else
 {
     var hasGK = Model.Players != null && Model.Players.Any(p => p.Position == "GK");
     var totalPlayers = Model.Players?.Count ?? 0;
+
     <!-- Header Thông tin Đội bóng -->
     <div class="card shadow-sm border-0 rounded-4 mb-4">
         <div class="card-body p-4">
@@ -68,6 +69,7 @@ else
             </div>
         </div>
     </div>
+
     <!-- Hàng Thông Báo Đăng Ký Giải & Cảnh Báo Quy Định -->
     <div class="row mb-4">
         <!-- Đăng ký giải đấu -->
@@ -130,6 +132,7 @@ else
                 </div>
             </div>
         </div>
+
         <!-- Quy định đăng ký -->
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 rounded-4 bg-light h-100">
@@ -147,6 +150,7 @@ else
             </div>
         </div>
     </div>
+
     <!-- Danh Sách Cầu Thủ Của Đội -->
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
@@ -174,18 +178,17 @@ else
                         {
                             foreach (var player in Model.Players.OrderBy(p => p.JerseyNumber))
                             {
+                                var jerseyClass = player.Position switch
+                                {
+                                    "GK" => "bg-warning text-dark border border-warning",
+                                    "DF" => "bg-info text-white",
+                                    "MF" => "bg-success text-white",
+                                    "FW" => "bg-danger text-white",
+                                    _ => "bg-secondary text-white"
+                                };
                                 <tr class="text-center">
                                     <td>
-                                        @{
-    var jerseyClass = player.Position switch {
-        "GK" => "bg-warning text-dark border border-warning",
-        "DF" => "bg-info text-white",
-        "MF" => "bg-success text-white",
-        "FW" => "bg-danger text-white",
-        _ => "bg-secondary text-white"
-    };
-}
-<span class="badge rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm @jerseyClass" style="width: 38px; height: 38px; font-size: 0.95rem; font-weight: 700;">#@player.JerseyNumber</span>
+                                        <span class="badge rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm @jerseyClass" style="width: 38px; height: 38px; font-size: 0.95rem; font-weight: 700;">#@player.JerseyNumber</span>
                                     </td>
                                     <td class="text-start fw-bold">@player.FullName</td>
                                     <td><code>@player.StudentCode</code></td>
@@ -209,12 +212,19 @@ else
                                     </td>
                                     <td>@player.DateOfBirth.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        <span class="badge bg-success">Đủ điều kiện</span>
+                                        @if (player.IsActive)
+                                        {
+                                            <span class="badge bg-success">Đủ điều kiện</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Tạm ngưng</span>
+                                        }
                                     </td>
                                     <td>
                                         <button type="button"
                                                 class="btn btn-outline-primary btn-sm me-1 btn-edit-player"
-                                                title="Ch?nh s?a c?u th?"
+                                                title="Chỉnh sửa cầu thủ"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#editPlayerModal"
                                                 data-player-id="@player.PlayerId"
@@ -246,61 +256,62 @@ else
             </div>
         </div>
     </div>
+
     <!-- Render PartialView Modal Form Thêm Cầu Thủ -->
     @await Html.PartialAsync("_PlayerFormModalPartial", new StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto())
 
-    <!-- Modal Ch?nh S?a C?u Th? -->
+    <!-- Modal Chỉnh Sửa Cầu Thủ -->
     <div class="modal fade" id="editPlayerModal" tabindex="-1" aria-labelledby="editPlayerModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form asp-controller="MyTeam" asp-action="EditPlayer" method="post">
                     <input type="hidden" id="editPlayerId" name="id" />
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="editPlayerModalLabel"><i class="bi bi-pencil-square me-2"></i>Ch?nh S?a Th�ng Tin C?u Th?</h5>
+                        <h5 class="modal-title" id="editPlayerModalLabel"><i class="bi bi-pencil-square me-2"></i>Chỉnh Sửa Thông Tin Cầu Thủ</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="editStudentCode" class="form-label fw-bold">M� s? sinh vi�n (MSSV) <span class="text-danger">*</span></label>
-                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="V� d?: HE180101" pattern="^[A-Z]{2}\d{6}$" required />
-                            <small class="text-muted">�?nh d?ng g?m 2 ch? c�i vi?t hoa v� 6 ch? s? (VD: HE180101)</small>
+                            <label for="editStudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="Ví dụ: HE180101" pattern="^[A-Z]{2}\d{6}$" required />
+                            <small class="text-muted">Định dạng gồm 2 chữ cái viết hoa và 6 chữ số (VD: HE180101)</small>
                         </div>
 
                         <div class="mb-3">
-                            <label for="editFullName" class="form-label fw-bold">H? v� t�n c?u th? <span class="text-danger">*</span></label>
+                            <label for="editFullName" class="form-label fw-bold">Họ và tên cầu thủ <span class="text-danger">*</span></label>
                             <input type="text" id="editFullName" name="FullName" class="form-control" maxlength="100" required />
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="editJerseyNumber" class="form-label fw-bold">S? �o thi d?u (1-99) <span class="text-danger">*</span></label>
+                                <label for="editJerseyNumber" class="form-label fw-bold">Số áo thi đấu (1-99) <span class="text-danger">*</span></label>
                                 <input type="number" id="editJerseyNumber" name="JerseyNumber" min="1" max="99" class="form-control" required />
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="editPosition" class="form-label fw-bold">V? tr� thi d?u <span class="text-danger">*</span></label>
+                                <label for="editPosition" class="form-label fw-bold">Vị trí thi đấu <span class="text-danger">*</span></label>
                                 <select id="editPosition" name="Position" class="form-select" required>
-                                    <option value="GK">Th? m�n (GK)</option>
-                                    <option value="DF">H?u v? (DF)</option>
-                                    <option value="MF">Ti?n v? (MF)</option>
-                                    <option value="FW">Ti?n d?o (FW)</option>
+                                    <option value="GK">Thủ môn (GK)</option>
+                                    <option value="DF">Hậu vệ (DF)</option>
+                                    <option value="MF">Tiền vệ (MF)</option>
+                                    <option value="FW">Tiền đạo (FW)</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="editDateOfBirth" class="form-label fw-bold">Ng�y sinh <span class="text-danger">*</span></label>
+                            <label for="editDateOfBirth" class="form-label fw-bold">Ngày sinh <span class="text-danger">*</span></label>
                             <input type="date" id="editDateOfBirth" name="DateOfBirth" class="form-control" required />
                         </div>
 
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive" value="true" checked />
                             <input type="hidden" name="IsActive" value="false" />
-                            <label class="form-check-label fw-bold" for="editIsActive">�? di?u ki?n thi d?u (�ang ho?t d?ng)</label>
+                            <label class="form-check-label fw-bold" for="editIsActive">Đủ điều kiện thi đấu (Đang hoạt động)</label>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">H?y</button>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Luu Thay �?i</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Thay Đổi</button>
                     </div>
                 </form>
             </div>
