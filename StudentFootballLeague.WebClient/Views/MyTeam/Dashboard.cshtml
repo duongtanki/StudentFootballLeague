@@ -49,7 +49,13 @@ else
     var mfCount = activePlayers.Count(p => p.Position == "MF");
     var fwCount = activePlayers.Count(p => p.Position == "FW");
     var totalPlayers = activePlayers.Count;
-    var progressPct = Math.Min(100, (int)Math.Round(totalPlayers * 100.0 / 15));
+    var defaultTournament = tournaments.FirstOrDefault();
+    var initialMinPlayers = defaultTournament?.MinPlayersPerTeam ?? 0;
+    var initialMaxPlayers = defaultTournament?.MaxPlayersPerTeam ?? 0;
+    var progressPct = initialMaxPlayers > 0
+        ? Math.Min(100, (int)Math.Round(totalPlayers * 100.0 / initialMaxPlayers))
+        : (hasGK && totalPlayers > 0 ? 100 : 0);
+    var isInitiallyEligible = defaultTournament != null && hasGK && totalPlayers >= initialMinPlayers && totalPlayers <= initialMaxPlayers;
     var initials = Model.TeamName.Substring(0, Math.Min(2, Model.TeamName.Length)).ToUpper();
 
     <!-- Team Header Banner -->
@@ -61,13 +67,17 @@ else
             <div class="col">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                     <h1 class="apex-display fw-bold fs-2 mb-0 text-white">@Model.TeamName</h1>
-                    @if (totalPlayers >= 7 && hasGK)
+                    @if (defaultTournament != null)
                     {
-                        <span class="apex-badge apex-badge--live">Đủ điều kiện thi đấu (@totalPlayers/15)</span>
+                        <span id="squadEligibilityBadge" class="apex-badge @(isInitiallyEligible ? "apex-badge--live" : "apex-badge--postponed")">
+                            @(isInitiallyEligible ? $"Đủ điều kiện thi đấu ({totalPlayers}/{initialMaxPlayers})" : $"Chưa đủ điều kiện ({totalPlayers}/{initialMaxPlayers})")
+                        </span>
                     }
                     else
                     {
-                        <span class="apex-badge apex-badge--postponed">Cần bổ sung đội hình (@totalPlayers/15)</span>
+                        <span id="squadEligibilityBadge" class="apex-badge @(hasGK && totalPlayers > 0 ? "apex-badge--live" : "apex-badge--postponed")">
+                            @(hasGK ? $"{totalPlayers} cầu thủ • Đã có Thủ môn" : $"{totalPlayers} cầu thủ • Thiếu Thủ môn (GK)")
+                        </span>
                     }
                 </div>
                 <p class="small text-muted mb-0">
@@ -89,7 +99,10 @@ else
         <div class="col-6 col-lg-3">
             <div class="apex-kpi-card">
                 <div class="apex-label-caps text-muted mb-1">Tổng số cầu thủ</div>
-                <div class="apex-kpi-value">@totalPlayers <span class="fs-5 text-muted">/ 15</span></div>
+                <div class="apex-kpi-value">
+                    @totalPlayers
+                    <span id="kpiMaxPlayers" class="fs-5 text-muted">@(initialMaxPlayers > 0 ? $"/ {initialMaxPlayers}" : "")</span>
+                </div>
             </div>
         </div>
         <div class="col-6 col-lg-3">
@@ -107,7 +120,7 @@ else
         <div class="col-6 col-lg-3">
             <div class="apex-kpi-card">
                 <div class="apex-label-caps text-muted mb-1">Hoàn thiện đội hình</div>
-                <div class="apex-kpi-value" style="color: var(--apex-cyan);">@progressPct%</div>
+                <div id="kpiProgressPct" class="apex-kpi-value" style="color: var(--apex-cyan);">@progressPct%</div>
             </div>
         </div>
     </div>
@@ -154,23 +167,43 @@ else
                     <form asp-action="RegisterTournament" method="post">
                         <label class="form-label small apex-label-caps">Chọn giải đấu đang mở đăng ký</label>
                         <div class="input-group">
-                            <select name="tournamentId" class="form-select" required>
+                            <select name="tournamentId" id="tournamentSelect" class="form-select"
+                                    data-total-players="@totalPlayers"
+                                    data-has-gk="@(hasGK ? "true" : "false")" required>
                                 <option value="">-- Chọn giải đấu --</option>
                                 @foreach (var t in tournaments)
                                 {
-                                    <option value="@t.TournamentId">@t.Name (Hạn: @t.RegistrationDeadline.ToString("dd/MM/yyyy"))</option>
+                                    <option value="@t.TournamentId"
+                                            data-min="@t.MinPlayersPerTeam"
+                                            data-max="@t.MaxPlayersPerTeam"
+                                            data-name="@t.Name"
+                                            selected="@(defaultTournament != null && t.TournamentId == defaultTournament.TournamentId ? "selected" : null)">
+                                        @t.Name (Quân số: @t.MinPlayersPerTeam–@t.MaxPlayersPerTeam cầu thủ • Hạn: @t.RegistrationDeadline.ToString("dd/MM/yyyy"))
+                                    </option>
                                 }
                             </select>
-                            <button type="submit" class="btn btn-apex-primary px-3" @(totalPlayers < 7 || !hasGK ? "disabled" : "")>
+                            <button type="submit" id="btnSubmitRegistration" class="btn btn-apex-primary px-3" @(!isInitiallyEligible ? "disabled" : "")>
                                 Nộp hồ sơ
                             </button>
                         </div>
-                        @if (totalPlayers < 7 || !hasGK)
-                        {
-                            <small class="d-block mt-2" style="color: var(--apex-pink-soft);">
-                                <i class="bi bi-exclamation-circle me-1"></i>Đội bóng cần tối thiểu 7 cầu thủ và ít nhất 1 Thủ môn (GK) trước khi nộp hồ sơ.
-                            </small>
-                        }
+                        <small id="registrationWarning" class="d-block mt-2" style="color: var(--apex-pink-soft); @(isInitiallyEligible ? "display: none !important;" : "")">
+                            @if (defaultTournament == null)
+                            {
+                                <text><i class="bi bi-exclamation-circle me-1"></i>Hiện chưa có giải đấu nào đang mở đăng ký.</text>
+                            }
+                            else if (!hasGK)
+                            {
+                                <text><i class="bi bi-exclamation-circle me-1"></i>Đội bóng bắt buộc phải có ít nhất 1 Thủ môn (GK) trước khi nộp hồ sơ.</text>
+                            }
+                            else if (totalPlayers < initialMinPlayers)
+                            {
+                                <text><i class="bi bi-exclamation-circle me-1"></i>Giải "@defaultTournament.Name" yêu cầu tối thiểu @initialMinPlayers cầu thủ (hiện tại: @totalPlayers).</text>
+                            }
+                            else if (totalPlayers > initialMaxPlayers)
+                            {
+                                <text><i class="bi bi-exclamation-circle me-1"></i>Giải "@defaultTournament.Name" giới hạn tối đa @initialMaxPlayers cầu thủ (hiện tại: @totalPlayers).</text>
+                            }
+                        </small>
                     </form>
                 </div>
             </div>
@@ -180,13 +213,25 @@ else
             <div class="apex-panel h-100">
                 <div class="apex-panel-header">
                     <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
-                        <i class="bi bi-journal-check me-2" style="color: var(--apex-mint);"></i>QUY ĐỊNH ĐIỀU LỆ SÂN 7
+                        <i class="bi bi-journal-check me-2" style="color: var(--apex-mint);"></i>QUY ĐỊNH ĐIỀU LỆ ĐĂNG KÝ
                     </h2>
                     <span class="apex-badge apex-badge--scheduled">FPT VFF 2026</span>
                 </div>
                 <div class="p-4">
                     <ul class="list-unstyled small text-muted d-flex flex-column gap-2 mb-4">
-                        <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Quân số hợp lệ: tối thiểu 7 cầu thủ, tối đa 15 cầu thủ đang hoạt động.</li>
+                        <li>
+                            <i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>
+                            <span id="rulePlayerRange">
+                                @if (defaultTournament != null)
+                                {
+                                    <text>Quân số hợp lệ (@defaultTournament.Name): tối thiểu @initialMinPlayers cầu thủ, tối đa @initialMaxPlayers cầu thủ đang hoạt động.</text>
+                                }
+                                else
+                                {
+                                    <text>Quân số hợp lệ (tối thiểu / tối đa) được áp dụng linh hoạt theo cấu hình của từng giải đấu.</text>
+                                }
+                            </span>
+                        </li>
                         <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Bắt buộc có ít nhất 1 Thủ môn (GK) trong danh sách đăng ký.</li>
                         <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Số áo từ 1 đến 99, không trùng lặp giữa các cầu thủ đang hoạt động trong đội.</li>
                         <li><i class="bi bi-check-circle-fill me-2" style="color: var(--apex-mint);"></i>Xóa cầu thủ sẽ dùng xóa mềm, bảo toàn lịch sử bàn thắng và thẻ phạt.</li>
@@ -194,10 +239,12 @@ else
                     <div class="p-3 rounded-2" style="background: var(--apex-lowest); border: 1px solid var(--apex-border-subtle);">
                         <div class="d-flex justify-content-between small mb-2">
                             <span class="apex-label-caps text-muted">Chỉ số hoàn thiện đội hình</span>
-                            <span class="fw-bold apex-tabular" style="color: var(--apex-mint);">@totalPlayers / 15 (@progressPct%)</span>
+                            <span id="ruleProgressLabel" class="fw-bold apex-tabular" style="color: var(--apex-mint);">
+                                @(initialMaxPlayers > 0 ? $"{totalPlayers} / {initialMaxPlayers} ({progressPct}%)" : $"{totalPlayers} cầu thủ")
+                            </span>
                         </div>
                         <div class="progress" style="height: 8px; background: var(--apex-surface);">
-                            <div class="progress-bar" role="progressbar" style="width: @progressPct%; background: linear-gradient(90deg, var(--apex-violet), var(--apex-mint));"></div>
+                            <div id="ruleProgressBar" class="progress-bar" role="progressbar" style="width: @progressPct%; background: linear-gradient(90deg, var(--apex-violet), var(--apex-mint));"></div>
                         </div>
                     </div>
                 </div>
@@ -357,5 +404,84 @@ else
             btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const select = document.getElementById('tournamentSelect');
+            if (!select) return;
+
+            const totalPlayers = parseInt(select.dataset.totalPlayers || '0', 10);
+            const hasGK = select.dataset.hasGk === 'true';
+
+            const badgeEl = document.getElementById('squadEligibilityBadge');
+            const kpiMaxEl = document.getElementById('kpiMaxPlayers');
+            const kpiPctEl = document.getElementById('kpiProgressPct');
+            const submitBtn = document.getElementById('btnSubmitRegistration');
+            const warningEl = document.getElementById('registrationWarning');
+            const ruleRangeEl = document.getElementById('rulePlayerRange');
+            const ruleProgressLabelEl = document.getElementById('ruleProgressLabel');
+            const ruleProgressBarEl = document.getElementById('ruleProgressBar');
+
+            function updateTournamentRules() {
+                const opt = select.options[select.selectedIndex];
+                const hasSelection = opt && opt.value !== '';
+                const minReq = hasSelection ? parseInt(opt.dataset.min, 10) : 0;
+                const maxReq = hasSelection ? parseInt(opt.dataset.max, 10) : 0;
+                const tourName = hasSelection ? opt.dataset.name : '';
+
+                if (!hasSelection || !maxReq) {
+                    if (kpiMaxEl) kpiMaxEl.textContent = '';
+                    const pct = hasGK && totalPlayers > 0 ? 100 : 0;
+                    if (kpiPctEl) kpiPctEl.textContent = pct + '%';
+                    if (ruleProgressLabelEl) ruleProgressLabelEl.textContent = totalPlayers + ' cầu thủ';
+                    if (ruleProgressBarEl) ruleProgressBarEl.style.width = pct + '%';
+                    if (ruleRangeEl) ruleRangeEl.textContent = 'Quân số hợp lệ (tối thiểu / tối đa) được áp dụng linh hoạt theo cấu hình của từng giải đấu.';
+                    if (badgeEl) {
+                        badgeEl.className = 'apex-badge ' + (hasGK && totalPlayers > 0 ? 'apex-badge--live' : 'apex-badge--postponed');
+                        badgeEl.textContent = hasGK ? `${totalPlayers} cầu thủ • Đã có Thủ môn` : `${totalPlayers} cầu thủ • Thiếu Thủ môn (GK)`;
+                    }
+                    if (submitBtn) submitBtn.disabled = true;
+                    if (warningEl) {
+                        warningEl.style.display = 'block';
+                        warningEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Vui lòng chọn một giải đấu để kiểm tra điều kiện và nộp hồ sơ.';
+                    }
+                    return;
+                }
+
+                const pct = Math.min(100, Math.round((totalPlayers * 100) / maxReq));
+                const eligible = hasGK && totalPlayers >= minReq && totalPlayers <= maxReq;
+
+                if (kpiMaxEl) kpiMaxEl.textContent = '/ ' + maxReq;
+                if (kpiPctEl) kpiPctEl.textContent = pct + '%';
+                if (ruleProgressLabelEl) ruleProgressLabelEl.textContent = `${totalPlayers} / ${maxReq} (${pct}%)`;
+                if (ruleProgressBarEl) ruleProgressBarEl.style.width = pct + '%';
+                if (ruleRangeEl) ruleRangeEl.textContent = `Quân số hợp lệ (${tourName}): tối thiểu ${minReq} cầu thủ, tối đa ${maxReq} cầu thủ đang hoạt động.`;
+
+                if (badgeEl) {
+                    badgeEl.className = 'apex-badge ' + (eligible ? 'apex-badge--live' : 'apex-badge--postponed');
+                    badgeEl.textContent = eligible
+                        ? `Đủ điều kiện thi đấu (${totalPlayers}/${maxReq})`
+                        : `Chưa đủ điều kiện (${totalPlayers}/${maxReq})`;
+                }
+
+                if (submitBtn) submitBtn.disabled = !eligible;
+
+                if (warningEl) {
+                    if (eligible) {
+                        warningEl.style.setProperty('display', 'none', 'important');
+                    } else {
+                        warningEl.style.setProperty('display', 'block', 'important');
+                        if (!hasGK) {
+                            warningEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Đội bóng bắt buộc phải có ít nhất 1 Thủ môn (GK) trước khi nộp hồ sơ.';
+                        } else if (totalPlayers < minReq) {
+                            warningEl.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>Giải "${tourName}" yêu cầu tối thiểu ${minReq} cầu thủ (hiện tại: ${totalPlayers}).`;
+                        } else {
+                            warningEl.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>Giải "${tourName}" giới hạn tối đa ${maxReq} cầu thủ (hiện tại: ${totalPlayers}).`;
+                        }
+                    }
+                }
+            }
+
+            select.addEventListener('change', updateTournamentRules);
+        });
     </script>
 }

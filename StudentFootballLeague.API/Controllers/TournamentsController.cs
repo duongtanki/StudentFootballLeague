@@ -226,11 +226,16 @@ namespace StudentFootballLeague.API.Controllers
                 return BadRequest(new { message = "Bạn chưa tạo đội bóng. Hãy tạo đội bóng trước khi đăng ký giải." });
             }
 
-            // Kiểm tra điều kiện tối thiểu cầu thủ đang hoạt động
+            // Kiểm tra điều kiện số lượng cầu thủ đang hoạt động theo quy định của giải đấu
             var activePlayers = team.Players.Where(p => p.IsActive).ToList();
             if (activePlayers.Count < tournament.MinPlayersPerTeam)
             {
                 return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ. Giải đấu yêu cầu tối thiểu {tournament.MinPlayersPerTeam} cầu thủ." });
+            }
+
+            if (activePlayers.Count > tournament.MaxPlayersPerTeam)
+            {
+                return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ, vượt quá giới hạn tối đa {tournament.MaxPlayersPerTeam} cầu thủ của giải đấu." });
             }
 
             var hasGk = activePlayers.Any(p => p.Position == "GK");
