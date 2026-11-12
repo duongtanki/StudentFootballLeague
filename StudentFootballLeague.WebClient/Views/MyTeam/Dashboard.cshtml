@@ -297,11 +297,27 @@ else
                                 <td>@player.DateOfBirth.ToString("dd/MM/yyyy")</td>
                                 <td><span class="apex-badge apex-badge--live">Sẵn sàng</span></td>
                                 <td>
-                                    <form asp-action="DeletePlayer" asp-route-id="@player.PlayerId" method="post" onsubmit="return confirm('Xóa cầu thủ @player.FullName khỏi danh sách đội hiện tại?');" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa cầu thủ">
-                                            <i class="bi bi-trash"></i>
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-info btn-edit-player"
+                                                title="Chỉnh sửa cầu thủ"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editPlayerModal"
+                                                data-player-id="@player.PlayerId"
+                                                data-student-code="@player.StudentCode"
+                                                data-full-name="@player.FullName"
+                                                data-jersey-number="@player.JerseyNumber"
+                                                data-position="@player.Position"
+                                                data-dob="@player.DateOfBirth.ToString("yyyy-MM-dd")"
+                                                data-is-active="@(player.IsActive ? "true" : "false")">
+                                            <i class="bi bi-pencil-square"></i>
                                         </button>
-                                    </form>
+                                        <form asp-action="DeletePlayer" asp-route-id="@player.PlayerId" method="post" onsubmit="return confirm('Xóa cầu thủ @player.FullName khỏi danh sách đội hiện tại?');" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa cầu thủ">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -320,34 +336,36 @@ else
     @await Html.PartialAsync("_PlayerFormModalPartial", new StudentFootballLeague.BusinessLogic.DTOs.PlayerCreateDto())
 
     <!-- Modal Chỉnh Sửa Cầu Thủ -->
-    <div class="modal fade" id="editPlayerModal" tabindex="-1" aria-labelledby="editPlayerModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+    <div class="modal fade apex-modal" id="editPlayerModal" tabindex="-1" aria-labelledby="editPlayerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form asp-controller="MyTeam" asp-action="EditPlayer" method="post">
                     <input type="hidden" id="editPlayerId" name="id" />
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="editPlayerModalLabel"><i class="bi bi-pencil-square me-2"></i>Chỉnh Sửa Thông Tin Cầu Thủ</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-header">
+                        <h5 class="modal-title apex-display fw-bold fs-4" id="editPlayerModalLabel">
+                            <i class="bi bi-pencil-square me-2" style="color: var(--apex-cyan);"></i>CHỈNH SỬA THÔNG TIN CẦU THỦ
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body p-4">
                         <div class="mb-3">
-                            <label for="editStudentCode" class="form-label fw-bold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
-                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="Ví dụ: HE180101" pattern="^[A-Z]{2}\d{6}$" required />
+                            <label for="editStudentCode" class="form-label fw-semibold small apex-label-caps">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                            <input type="text" id="editStudentCode" name="StudentCode" class="form-control" placeholder="Ví dụ: HE180101, HA180004" pattern="^[A-Z]{2}\d{6}$" required />
                             <small class="text-muted">Định dạng gồm 2 chữ cái viết hoa và 6 chữ số (VD: HE180101)</small>
                         </div>
 
                         <div class="mb-3">
-                            <label for="editFullName" class="form-label fw-bold">Họ và tên cầu thủ <span class="text-danger">*</span></label>
+                            <label for="editFullName" class="form-label fw-semibold small apex-label-caps">Họ và tên cầu thủ <span class="text-danger">*</span></label>
                             <input type="text" id="editFullName" name="FullName" class="form-control" maxlength="100" required />
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="editJerseyNumber" class="form-label fw-bold">Số áo thi đấu (1-99) <span class="text-danger">*</span></label>
-                                <input type="number" id="editJerseyNumber" name="JerseyNumber" min="1" max="99" class="form-control" required />
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="editJerseyNumber" class="form-label fw-semibold small apex-label-caps">Số áo (1–99) <span class="text-danger">*</span></label>
+                                <input type="number" id="editJerseyNumber" name="JerseyNumber" min="1" max="99" class="form-control apex-tabular" required />
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="editPosition" class="form-label fw-bold">Vị trí thi đấu <span class="text-danger">*</span></label>
+                            <div class="col-md-6">
+                                <label for="editPosition" class="form-label fw-semibold small apex-label-caps">Vị trí sở trường <span class="text-danger">*</span></label>
                                 <select id="editPosition" name="Position" class="form-select" required>
                                     <option value="GK">Thủ môn (GK)</option>
                                     <option value="DF">Hậu vệ (DF)</option>
@@ -358,19 +376,21 @@ else
                         </div>
 
                         <div class="mb-3">
-                            <label for="editDateOfBirth" class="form-label fw-bold">Ngày sinh <span class="text-danger">*</span></label>
+                            <label for="editDateOfBirth" class="form-label fw-semibold small apex-label-caps">Ngày sinh <span class="text-danger">*</span></label>
                             <input type="date" id="editDateOfBirth" name="DateOfBirth" class="form-control" required />
                         </div>
 
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive" value="true" checked />
-                            <input type="hidden" name="IsActive" value="false" />
-                            <label class="form-check-label fw-bold" for="editIsActive">Đủ điều kiện thi đấu (Đang hoạt động)</label>
+                        <div class="p-3 rounded-2" style="background: var(--apex-lowest); border: 1px solid var(--apex-border-subtle);">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive" value="true" checked />
+                                <input type="hidden" name="IsActive" value="false" />
+                                <label class="form-check-label fw-semibold text-white" for="editIsActive">Đủ điều kiện thi đấu (Đang hoạt động)</label>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Thay Đổi</button>
+                        <button type="button" class="btn btn-apex-ghost" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-apex-primary px-4"><i class="bi bi-save me-1"></i> Lưu thay đổi</button>
                     </div>
                 </form>
             </div>
