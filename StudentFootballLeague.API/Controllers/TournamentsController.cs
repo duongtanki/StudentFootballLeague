@@ -207,6 +207,11 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Giải đấu không tồn tại." });
             }
 
+            if (tournament.Status == "Cancelled" || tournament.Status == "Completed")
+            {
+                return BadRequest(new { message = "Giải đấu đã bị hủy hoặc đã kết thúc, không thể đăng ký." });
+            }
+
             if (DateTime.UtcNow > tournament.RegistrationDeadline)
             {
                 return BadRequest(new { message = "Giải đấu đã hết hạn đăng ký." });
@@ -303,6 +308,10 @@ namespace StudentFootballLeague.API.Controllers
             var result = await _knockoutService.ResetBracketAsync(id);
             if (!result.IsSuccess)
             {
+                if (result.ErrorMessage == "Không tìm thấy giải đấu.")
+                {
+                    return NotFound(new { message = result.ErrorMessage });
+                }
                 return BadRequest(new { message = result.ErrorMessage });
             }
             return Ok(new { message = "Đã xóa nhánh đấu Knockout thành công. Bạn có thể sắp xếp lại cặp đấu mới." });

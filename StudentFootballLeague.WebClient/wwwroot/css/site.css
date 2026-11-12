@@ -636,6 +636,184 @@ select:focus-visible,
   border-left: 3px solid var(--apex-crimson);
 }
 
+/* Split 2-Side Match Events Timeline */
+.apex-split-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.apex-split-timeline::before {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(0, 255, 133, 0.35), rgba(150, 60, 255, 0.45), rgba(233, 0, 82, 0.35));
+}
+
+.apex-split-row {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.apex-split-cell--home {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.apex-split-cell--away {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.apex-split-card {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(28, 5, 31, 0.68);
+  border: 1px solid var(--apex-border);
+  border-radius: 10px;
+  padding: 0.7rem 0.95rem;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.apex-split-card:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.apex-split-card--home {
+  text-align: right;
+  border-right: 3px solid var(--apex-mint);
+}
+
+.apex-split-card--away {
+  text-align: left;
+  border-left: 3px solid var(--apex-violet-soft);
+}
+
+.apex-split-card--yellow {
+  border-color: rgba(255, 193, 7, 0.35);
+  border-left-color: var(--apex-amber);
+  border-right-color: var(--apex-amber);
+}
+
+.apex-split-card--red {
+  border-color: rgba(233, 0, 82, 0.45);
+  border-left-color: var(--apex-crimson);
+  border-right-color: var(--apex-crimson);
+}
+
+.apex-split-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.apex-split-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  background: var(--apex-lowest);
+  border: 2px solid var(--apex-border);
+  box-shadow: 0 0 0 4px rgba(28, 5, 31, 0.9);
+}
+
+.apex-split-icon--goal {
+  color: var(--apex-mint);
+  border-color: var(--apex-mint);
+}
+
+.apex-split-icon--yellow {
+  color: var(--apex-amber);
+  border-color: var(--apex-amber);
+}
+
+.apex-split-icon--red {
+  color: var(--apex-crimson);
+  border-color: var(--apex-crimson);
+}
+
+.apex-split-minute {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(28, 5, 31, 0.95);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--apex-border);
+}
+
+/* Vertical Lineup Rows */
+.apex-lineup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(28, 5, 31, 0.55);
+  border: 1px solid var(--apex-border-subtle);
+}
+
+.apex-lineup-row--sub {
+  background: rgba(28, 5, 31, 0.32);
+  border-style: dashed;
+}
+
+.apex-pos-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.22rem 0.55rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.apex-pos-pill--GK { background: rgba(0, 255, 133, 0.14); color: var(--apex-mint); border: 1px solid rgba(0, 255, 133, 0.3); }
+.apex-pos-pill--DF { background: rgba(150, 60, 255, 0.18); color: var(--apex-violet-soft); border: 1px solid rgba(150, 60, 255, 0.35); }
+.apex-pos-pill--MF { background: rgba(255, 193, 7, 0.14); color: var(--apex-amber); border: 1px solid rgba(255, 193, 7, 0.3); }
+.apex-pos-pill--FW { background: rgba(233, 0, 82, 0.18); color: var(--apex-pink-soft); border: 1px solid rgba(233, 0, 82, 0.35); }
+
+@media (max-width: 767.98px) {
+  .apex-split-timeline::before {
+    left: 20px;
+    transform: none;
+  }
+  .apex-split-row {
+    grid-template-columns: 42px 1fr;
+  }
+  .apex-split-node {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .apex-split-cell--home,
+  .apex-split-cell--away {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-start;
+  }
+  .apex-split-cell--empty {
+    display: none;
+  }
+  .apex-split-card--home {
+    text-align: left;
+    border-right: 1px solid var(--apex-border);
+    border-left: 3px solid var(--apex-mint);
+  }
+}
+
 .apex-footer {
   background-color: var(--apex-lowest);
   border-top: 1px solid var(--apex-border);

@@ -43,6 +43,11 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 return (false, "Giải đấu không tồn tại.", null);
             }
 
+            if (tournament.Status == "Cancelled" || tournament.Status == "Completed")
+            {
+                return (false, "Không thể lên lịch thi đấu cho giải đấu đã bị hủy hoặc đã kết thúc.", null);
+            }
+
             var homeReg = await _context.TeamRegistrations
                 .FirstOrDefaultAsync(r => r.TournamentId == dto.TournamentId && r.TeamId == dto.HomeTeamId && r.ApprovalStatus == "Approved");
             var awayReg = await _context.TeamRegistrations

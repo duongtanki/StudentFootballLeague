@@ -18,12 +18,18 @@ namespace StudentFootballLeague.API.Controllers
         private readonly AppDbContext _context;
         private readonly IMatchService _matchService;
         private readonly IStandingsService _standingsService;
+        private readonly IKnockoutService _knockoutService;
 
-        public MatchesController(AppDbContext context, IMatchService matchService, IStandingsService standingsService)
+        public MatchesController(
+            AppDbContext context,
+            IMatchService matchService,
+            IStandingsService standingsService,
+            IKnockoutService knockoutService)
         {
             _context = context;
             _matchService = matchService;
             _standingsService = standingsService;
+            _knockoutService = knockoutService;
         }
 
         [HttpGet("odata/Matches")]
@@ -275,7 +281,7 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Không tìm thấy trận đấu liên quan." });
             }
 
-            // Nếu là bàn thắng, tự động giảm tỷ số tương ứng
+            // Nếu là bàn thắng hoặc phản lưới, tự động giảm tỷ số tương ứng
             if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
             {
                 if (ev.TeamId == match.HomeTeamId && (match.HomeScore ?? 0) > 0)
@@ -285,6 +291,26 @@ namespace StudentFootballLeague.API.Controllers
                 else if (ev.TeamId == match.AwayTeamId && (match.AwayScore ?? 0) > 0)
                 {
                     match.AwayScore--;
+                }
+            }
+            else if (ev.EventType == "OwnGoal")
+            {
+                if (ev.TeamId == match.HomeTeamId && (match.AwayScore ?? 0) > 0)
+                {
+                    match.AwayScore--;
+                }
+                else if (ev.TeamId == match.AwayTeamId && (match.HomeScore ?? 0) > 0)
+                {
+                    match.HomeScore--;
+                }
+            }
+
+            if (match.Stage == "Knockout" && match.Status == "Completed")
+            {
+                var syncResult = await _knockoutService.AdvanceWinnerOrSyncAsync(match);
+                if (!syncResult.IsSuccess)
+                {
+                    return BadRequest(new { message = syncResult.ErrorMessage });
                 }
             }
 

@@ -1,17 +1,62 @@
 @model StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto
+@using StudentFootballLeague.BusinessLogic.DTOs
 @{
     ViewData["Title"] = $"Chi tiết trận đấu: {Model.HomeTeamName} vs {Model.AwayTeamName}";
-    var homePlayers = ViewBag.HomePlayers as List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto>();
-    var awayPlayers = ViewBag.AwayPlayers as List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.PlayerReadDto>();
+    var homePlayers = ViewBag.HomePlayers as List<PlayerReadDto> ?? new List<PlayerReadDto>();
+    var awayPlayers = ViewBag.AwayPlayers as List<PlayerReadDto> ?? new List<PlayerReadDto>();
     var isLive = string.Equals(Model.Status, "InProgress", StringComparison.OrdinalIgnoreCase);
     var showScore = isLive || string.Equals(Model.Status, "Completed", StringComparison.OrdinalIgnoreCase);
 
-    var events = Model.Events ?? new List<StudentFootballLeague.BusinessLogic.DTOs.MatchEventReadDto>();
+    var events = (Model.Events ?? new List<MatchEventReadDto>()).OrderBy(e => e.Minute).ToList();
     var totalGoals = events.Count(e => e.EventType == "Goal" || e.EventType == "PenaltyGoal" || e.EventType == "OwnGoal");
     var homeYellow = events.Count(e => e.TeamId == Model.HomeTeamId && e.EventType == "YellowCard");
     var homeRed = events.Count(e => e.TeamId == Model.HomeTeamId && e.EventType == "RedCard");
     var awayYellow = events.Count(e => e.TeamId == Model.AwayTeamId && e.EventType == "YellowCard");
     var awayRed = events.Count(e => e.TeamId == Model.AwayTeamId && e.EventType == "RedCard");
+
+    var eventPlayerIds = events.Select(e => e.PlayerId).ToHashSet();
+
+    int PosOrder(string? pos) => pos switch
+    {
+        "GK" => 0,
+        "DF" => 1,
+        "MF" => 2,
+        "FW" => 3,
+        _ => 4
+    };
+
+    string PosLabel(string? pos) => pos switch
+    {
+        "GK" => "GK - Thủ môn",
+        "DF" => "DF - Hậu vệ",
+        "MF" => "MF - Tiền vệ",
+        "FW" => "FW - Tiền đạo",
+        _ => pos ?? "N/A"
+    };
+
+    (List<PlayerReadDto> Starters, List<PlayerReadDto> Subs) SplitLineup(List<PlayerReadDto> squad)
+    {
+        var starters = squad
+            .OrderByDescending(p => eventPlayerIds.Contains(p.PlayerId))
+            .ThenBy(p => p.PlayerId)
+            .Take(7)
+            .OrderBy(p => PosOrder(p.Position))
+            .ThenBy(p => p.JerseyNumber)
+            .ToList();
+
+        var starterIds = starters.Select(p => p.PlayerId).ToHashSet();
+
+        var subs = squad
+            .Where(p => !starterIds.Contains(p.PlayerId))
+            .OrderBy(p => PosOrder(p.Position))
+            .ThenBy(p => p.JerseyNumber)
+            .ToList();
+
+        return (starters, subs);
+    }
+
+    var (homeStarters, homeSubs) = SplitLineup(homePlayers);
+    var (awayStarters, awaySubs) = SplitLineup(awayPlayers);
 
     string Monogram(string name)
     {
@@ -101,131 +146,229 @@
     </div>
 </section>
 
-<div class="row g-4">
-    <!-- Diễn biến trận đấu -->
-    <div class="col-lg-6">
-        <div class="apex-panel h-100">
-            <div class="apex-panel-header">
-                <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
-                    <i class="bi bi-stopwatch me-2" style="color: var(--apex-crimson);"></i>DIỄN BIẾN TRẬN ĐẤU
-                </h2>
-                <span class="apex-badge apex-badge--live">@events.Count sự kiện</span>
+<!-- Diễn biến trận đấu 2 bên (Home Left | Minute Axis Center | Away Right) -->
+<section class="apex-panel mb-4">
+    <div class="apex-panel-header">
+        <div>
+            <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
+                <i class="bi bi-stopwatch me-2" style="color: var(--apex-crimson);"></i>DIỄN BIẾN TRẬN ĐẤU
+            </h2>
+            <small class="text-muted">Phân tách hai bên Chủ nhà &amp; Đội khách theo mốc phút</small>
+        </div>
+        <span class="apex-badge apex-badge--live">@events.Count sự kiện</span>
+    </div>
+    <div class="p-3 p-md-4">
+        @if (events.Any())
+        {
+            <div class="d-none d-md-grid mb-3 text-uppercase apex-label-caps text-muted" style="grid-template-columns: 1fr 72px 1fr; gap: 0.75rem;">
+                <div class="text-end" style="color: var(--apex-mint);">@Model.HomeTeamName (Chủ nhà)</div>
+                <div class="text-center">Phút</div>
+                <div class="text-start" style="color: var(--apex-pink-soft);">@Model.AwayTeamName (Đội khách)</div>
             </div>
-            <div class="p-3 p-md-4">
-                @if (events.Any())
-                {
-                    <div class="d-flex flex-column gap-3">
-                        @foreach (var ev in events.OrderBy(e => e.Minute))
-                        {
-                            var modifier = ev.EventType == "YellowCard"
-                                ? "apex-timeline-item--yellow"
-                                : (ev.EventType == "RedCard" ? "apex-timeline-item--red" : "apex-timeline-item--goal");
 
-                            <div class="apex-timeline-item @modifier d-flex align-items-start gap-3">
-                                <span class="apex-crest apex-tabular" style="width: 44px; height: 44px; font-size: 1rem;">@ev.Minute'</span>
-                                <div class="flex-grow-1 min-w-0">
-                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                        @if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
-                                        {
-                                            <span class="apex-badge apex-badge--live">@(ev.EventType == "PenaltyGoal" ? "Phạt đền" : "Bàn thắng")</span>
-                                        }
-                                        else if (ev.EventType == "OwnGoal")
-                                        {
-                                            <span class="apex-badge apex-badge--scheduled">Phản lưới</span>
-                                        }
-                                        else if (ev.EventType == "YellowCard")
-                                        {
-                                            <span class="apex-badge apex-badge--postponed">Thẻ vàng</span>
-                                        }
-                                        else if (ev.EventType == "RedCard")
-                                        {
-                                            <span class="apex-badge apex-badge--cancelled">Thẻ đỏ</span>
-                                        }
+            <div class="apex-split-timeline">
+                @foreach (var ev in events)
+                {
+                    var isHomeEvent = Model.HomeTeamId.HasValue && ev.TeamId == Model.HomeTeamId.Value;
+                    var isYellow = ev.EventType == "YellowCard";
+                    var isRed = ev.EventType == "RedCard";
+                    var cardMod = isYellow ? "apex-split-card--yellow" : (isRed ? "apex-split-card--red" : "");
+                    var iconMod = isYellow ? "apex-split-icon--yellow" : (isRed ? "apex-split-icon--red" : "apex-split-icon--goal");
+                    var iconClass = isYellow ? "bi-square-fill" : (isRed ? "bi-square-fill" : "bi-dribbble");
+                    var badgeText = ev.EventType switch
+                    {
+                        "Goal" => "Bàn thắng",
+                        "PenaltyGoal" => "Phạt đền (P)",
+                        "OwnGoal" => "Phản lưới",
+                        "YellowCard" => "Thẻ vàng",
+                        "RedCard" => "Thẻ đỏ",
+                        _ => ev.EventType
+                    };
+                    var badgeClass = ev.EventType switch
+                    {
+                        "Goal" or "PenaltyGoal" => "apex-badge--live",
+                        "OwnGoal" => "apex-badge--scheduled",
+                        "YellowCard" => "apex-badge--postponed",
+                        "RedCard" => "apex-badge--cancelled",
+                        _ => "apex-badge--scheduled"
+                    };
+
+                    <div class="apex-split-row">
+                        @if (isHomeEvent)
+                        {
+                            <div class="apex-split-cell--home">
+                                <div class="apex-split-card apex-split-card--home @cardMod">
+                                    <div class="d-flex flex-wrap align-items-center justify-content-md-end gap-2 mb-1">
+                                        <span class="apex-badge @badgeClass">@badgeText</span>
                                         <span class="fw-bold text-white">@ev.PlayerName <span class="text-muted apex-tabular">#@ev.JerseyNumber</span></span>
                                     </div>
-                                    <small class="text-muted d-block">
-                                        @ev.TeamName@(string.IsNullOrEmpty(ev.Description) ? "" : $" • {ev.Description}")
-                                    </small>
+                                    @if (!string.IsNullOrEmpty(ev.Description))
+                                    {
+                                        <small class="text-muted d-block">@ev.Description</small>
+                                    }
                                 </div>
                             </div>
                         }
-                    </div>
-                }
-                else
-                {
-                    <div class="text-center py-5 text-muted">
-                        <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
-                        <p class="mb-0">Chưa có sự kiện nào được ghi nhận trong trận đấu này.</p>
+                        else
+                        {
+                            <div class="apex-split-cell--empty"></div>
+                        }
+
+                        <div class="apex-split-node">
+                            <span class="apex-split-icon @iconMod">
+                                <i class="bi @iconClass"></i>
+                            </span>
+                            <span class="apex-split-minute apex-tabular">@ev.Minute'</span>
+                        </div>
+
+                        @if (!isHomeEvent)
+                        {
+                            <div class="apex-split-cell--away">
+                                <div class="apex-split-card apex-split-card--away @cardMod">
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                        <span class="apex-badge @badgeClass">@badgeText</span>
+                                        <span class="fw-bold text-white">@ev.PlayerName <span class="text-muted apex-tabular">#@ev.JerseyNumber</span></span>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(ev.Description))
+                                    {
+                                        <small class="text-muted d-block">@ev.Description</small>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="apex-split-cell--empty"></div>
+                        }
                     </div>
                 }
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
+                <p class="mb-0">Chưa có sự kiện nào được ghi nhận trong trận đấu này.</p>
+            </div>
+        }
     </div>
+</section>
 
-    <!-- Đội hình đăng ký -->
-    <div class="col-lg-6">
-        <div class="apex-panel h-100">
-            <div class="apex-panel-header">
-                <h2 class="apex-display fw-bold fs-4 mb-0 text-white">
-                    <i class="bi bi-people-fill me-2" style="color: var(--apex-violet-soft);"></i>ĐỘI HÌNH ĐĂNG KÝ
-                </h2>
-                <span class="apex-badge apex-badge--scheduled">Sân 7 người</span>
-            </div>
-            <div class="p-3 p-md-4">
-                <div class="row g-4">
-                    <div class="col-sm-6">
-                        <div class="pb-2 mb-2 border-bottom d-flex justify-content-between align-items-center" style="border-color: var(--apex-border) !important;">
-                            <h3 class="h6 fw-bold mb-0" style="color: var(--apex-mint);">@Model.HomeTeamName</h3>
-                            <span class="small text-muted apex-tabular">@homePlayers.Count</span>
+<!-- Đội hình đăng ký theo hàng dọc (7 Chính thức + Dự bị) -->
+<div class="row g-4">
+    @{
+        var teamPanels = new[]
+        {
+            new { TeamName = Model.HomeTeamName, RoleLabel = "CHỦ NHÀ", AccentColor = "var(--apex-mint)", BadgeClass = "apex-badge--live", Starters = homeStarters, Subs = homeSubs, TotalCount = homePlayers.Count },
+            new { TeamName = Model.AwayTeamName, RoleLabel = "ĐỘI KHÁCH", AccentColor = "var(--apex-pink-soft)", BadgeClass = "apex-badge--scheduled", Starters = awayStarters, Subs = awaySubs, TotalCount = awayPlayers.Count }
+        };
+    }
+
+    @foreach (var team in teamPanels)
+    {
+        <div class="col-lg-6">
+            <div class="apex-panel h-100">
+                <div class="apex-panel-header">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        <div class="apex-crest" style="width: 38px; height: 38px; font-size: 0.9rem;">@Monogram(team.TeamName)</div>
+                        <div class="min-w-0">
+                            <h2 class="h5 apex-display fw-bold mb-0 text-white text-truncate">@team.TeamName</h2>
+                            <span class="apex-label-caps" style="color: @team.AccentColor; font-size: 0.7rem;">@team.RoleLabel • Sân 7 người</span>
                         </div>
-                        @if (homePlayers.Any())
-                        {
-                            <div class="d-flex flex-column gap-2">
-                                @foreach (var p in homePlayers)
-                                {
-                                    <div class="d-flex justify-content-between align-items-center p-2 rounded-2" style="background: rgba(28, 5, 31, 0.5); border: 1px solid var(--apex-border-subtle);">
-                                        <div class="d-flex align-items-center gap-2 min-w-0">
-                                            <span class="badge bg-dark border apex-tabular">#@p.JerseyNumber</span>
-                                            <span class="small text-white text-truncate">@p.FullName</span>
-                                        </div>
-                                        <span class="apex-label-caps" style="color: var(--apex-violet-soft);">@p.Position</span>
-                                    </div>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="small text-muted mb-0">Chưa cập nhật danh sách cầu thủ.</p>
-                        }
+                    </div>
+                    <span class="apex-badge @team.BadgeClass apex-tabular">@team.TotalCount cầu thủ</span>
+                </div>
+
+                <div class="p-3 p-md-4">
+                    <!-- Đội hình chính thức (Starting 7) -->
+                    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom" style="border-color: var(--apex-border) !important;">
+                        <span class="apex-label-caps text-white">
+                            <i class="bi bi-person-check-fill me-1" style="color: @team.AccentColor;"></i>ĐỘI HÌNH CHÍNH THỨC (STARTING 7)
+                        </span>
+                        <span class="small text-muted apex-tabular">@team.Starters.Count cầu thủ</span>
                     </div>
 
-                    <div class="col-sm-6">
-                        <div class="pb-2 mb-2 border-bottom d-flex justify-content-between align-items-center" style="border-color: var(--apex-border) !important;">
-                            <h3 class="h6 fw-bold mb-0" style="color: var(--apex-pink-soft);">@Model.AwayTeamName</h3>
-                            <span class="small text-muted apex-tabular">@awayPlayers.Count</span>
-                        </div>
-                        @if (awayPlayers.Any())
-                        {
-                            <div class="d-flex flex-column gap-2">
-                                @foreach (var p in awayPlayers)
-                                {
-                                    <div class="d-flex justify-content-between align-items-center p-2 rounded-2" style="background: rgba(28, 5, 31, 0.5); border: 1px solid var(--apex-border-subtle);">
-                                        <div class="d-flex align-items-center gap-2 min-w-0">
-                                            <span class="badge bg-dark border apex-tabular">#@p.JerseyNumber</span>
-                                            <span class="small text-white text-truncate">@p.FullName</span>
+                    @if (team.Starters.Any())
+                    {
+                        <div class="d-flex flex-column gap-2 mb-4">
+                            @foreach (var p in team.Starters)
+                            {
+                                var pEvents = events.Where(e => e.PlayerId == p.PlayerId).ToList();
+                                <div class="apex-lineup-row">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        <span class="badge bg-dark border apex-tabular" style="min-width: 34px;">#@p.JerseyNumber</span>
+                                        <div class="min-w-0">
+                                            <div class="small fw-semibold text-white text-truncate">@p.FullName</div>
+                                            <div class="text-muted" style="font-size: 0.72rem;">MSSV: @p.StudentCode</div>
                                         </div>
-                                        <span class="apex-label-caps" style="color: var(--apex-violet-soft);">@p.Position</span>
                                     </div>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="small text-muted mb-0">Chưa cập nhật danh sách cầu thủ.</p>
-                        }
+                                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                        @foreach (var pe in pEvents)
+                                        {
+                                            if (pe.EventType == "Goal" || pe.EventType == "PenaltyGoal")
+                                            {
+                                                <span class="apex-badge apex-badge--live apex-tabular" style="font-size: 0.68rem;">
+                                                    <i class="bi bi-dribbble me-1"></i>@pe.Minute'@(pe.EventType == "PenaltyGoal" ? " (P)" : "")
+                                                </span>
+                                            }
+                                            else if (pe.EventType == "YellowCard")
+                                            {
+                                                <span class="apex-badge apex-badge--postponed apex-tabular" style="font-size: 0.68rem;">
+                                                    <i class="bi bi-square-fill me-1"></i>@pe.Minute'
+                                                </span>
+                                            }
+                                            else if (pe.EventType == "RedCard")
+                                            {
+                                                <span class="apex-badge apex-badge--cancelled apex-tabular" style="font-size: 0.68rem;">
+                                                    <i class="bi bi-square-fill me-1"></i>@pe.Minute'
+                                                </span>
+                                            }
+                                        }
+                                        <span class="apex-pos-pill apex-pos-pill--@p.Position">@PosLabel(p.Position)</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-4">Chưa cập nhật danh sách cầu thủ chính thức.</p>
+                    }
+
+                    <!-- Đội hình dự bị (Substitutes) -->
+                    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom" style="border-color: var(--apex-border) !important;">
+                        <span class="apex-label-caps text-muted">
+                            <i class="bi bi-people me-1" style="color: var(--apex-violet-soft);"></i>ĐỘI HÌNH DỰ BỊ (SUBSTITUTES)
+                        </span>
+                        <span class="small text-muted apex-tabular">@team.Subs.Count dự bị</span>
                     </div>
+
+                    @if (team.Subs.Any())
+                    {
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var p in team.Subs)
+                            {
+                                <div class="apex-lineup-row apex-lineup-row--sub">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        <span class="badge bg-dark border apex-tabular text-muted" style="min-width: 34px;">#@p.JerseyNumber</span>
+                                        <div class="min-w-0">
+                                            <div class="small text-white-50 text-truncate">@p.FullName</div>
+                                            <div class="text-muted" style="font-size: 0.72rem;">MSSV: @p.StudentCode</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                        <span class="apex-pos-pill apex-pos-pill--@p.Position">@PosLabel(p.Position)</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0">Chưa có cầu thủ dự bị đăng ký.</p>
+                    }
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>
