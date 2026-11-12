@@ -18,11 +18,13 @@ namespace StudentFootballLeague.API.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ITournamentService _tournamentService;
+        private readonly IKnockoutService _knockoutService;
 
-        public TournamentsController(AppDbContext context, ITournamentService tournamentService)
+        public TournamentsController(AppDbContext context, ITournamentService tournamentService, IKnockoutService knockoutService)
         {
             _context = context;
             _tournamentService = tournamentService;
+            _knockoutService = knockoutService;
         }
 
         [HttpGet]
@@ -30,6 +32,8 @@ namespace StudentFootballLeague.API.Controllers
         {
             var query = _context.Tournaments
                 .Include(t => t.Registrations)
+                .Include(t => t.ChampionTeam)
+                .Include(t => t.Matches)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(status))
@@ -48,6 +52,12 @@ namespace StudentFootballLeague.API.Controllers
                     EndDate = t.EndDate,
                     RegistrationDeadline = t.RegistrationDeadline,
                     MaxTeams = t.MaxTeams,
+                    GroupCount = t.GroupCount,
+                    KnockoutTeamCount = t.KnockoutTeamCount,
+                    HasThirdPlaceMatch = t.HasThirdPlaceMatch,
+                    ChampionTeamId = t.ChampionTeamId,
+                    ChampionTeamName = t.ChampionTeam != null ? t.ChampionTeam.TeamName : null,
+                    HasKnockoutBracket = t.Matches.Any(m => m.Stage == "Knockout" && m.Status != "Cancelled"),
                     MinPlayersPerTeam = t.MinPlayersPerTeam,
                     MaxPlayersPerTeam = t.MaxPlayersPerTeam,
                     Status = t.Status,
@@ -121,6 +131,9 @@ namespace StudentFootballLeague.API.Controllers
                 EndDate = dto.EndDate,
                 RegistrationDeadline = dto.RegistrationDeadline,
                 MaxTeams = dto.MaxTeams,
+                GroupCount = dto.GroupCount,
+                KnockoutTeamCount = dto.KnockoutTeamCount,
+                HasThirdPlaceMatch = dto.HasThirdPlaceMatch,
                 MinPlayersPerTeam = dto.MinPlayersPerTeam,
                 MaxPlayersPerTeam = dto.MaxPlayersPerTeam,
                 Status = dto.Status
@@ -153,6 +166,9 @@ namespace StudentFootballLeague.API.Controllers
             tournament.EndDate = dto.EndDate;
             tournament.RegistrationDeadline = dto.RegistrationDeadline;
             tournament.MaxTeams = dto.MaxTeams;
+            tournament.GroupCount = dto.GroupCount;
+            tournament.KnockoutTeamCount = dto.KnockoutTeamCount;
+            tournament.HasThirdPlaceMatch = dto.HasThirdPlaceMatch;
             tournament.MinPlayersPerTeam = dto.MinPlayersPerTeam;
             tournament.MaxPlayersPerTeam = dto.MaxPlayersPerTeam;
             tournament.Status = dto.Status;
@@ -191,6 +207,11 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Giải đấu không tồn tại." });
             }
 
+            if (tournament.Status == "Cancelled" || tournament.Status == "Completed")
+            {
+                return BadRequest(new { message = "Giải đấu đã bị hủy hoặc đã kết thúc, không thể đăng ký." });
+            }
+
             if (DateTime.UtcNow > tournament.RegistrationDeadline)
             {
                 return BadRequest(new { message = "Giải đấu đã hết hạn đăng ký." });
@@ -205,11 +226,16 @@ namespace StudentFootballLeague.API.Controllers
                 return BadRequest(new { message = "Bạn chưa tạo đội bóng. Hãy tạo đội bóng trước khi đăng ký giải." });
             }
 
-            // Kiểm tra điều kiện tối thiểu cầu thủ đang hoạt động
+            // Kiểm tra điều kiện số lượng cầu thủ đang hoạt động theo quy định của giải đấu
             var activePlayers = team.Players.Where(p => p.IsActive).ToList();
             if (activePlayers.Count < tournament.MinPlayersPerTeam)
             {
                 return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ. Giải đấu yêu cầu tối thiểu {tournament.MinPlayersPerTeam} cầu thủ." });
+            }
+
+            if (activePlayers.Count > tournament.MaxPlayersPerTeam)
+            {
+                return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ, vượt quá giới hạn tối đa {tournament.MaxPlayersPerTeam} cầu thủ của giải đấu." });
             }
 
             var hasGk = activePlayers.Any(p => p.Position == "GK");
@@ -237,6 +263,63 @@ namespace StudentFootballLeague.API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Gửi hồ sơ đăng ký thành công, vui lòng chờ Ban tổ chức phê duyệt.", registrationId = reg.RegistrationId });
+        }
+
+        [HttpGet("{id}/knockout/setup")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetKnockoutSetup(int id)
+        {
+            var result = await _knockoutService.GetKnockoutSetupAsync(id);
+            if (!result.IsSuccess)
+            {
+                return NotFound(new { message = result.ErrorMessage });
+            }
+            return Ok(result.Data);
+        }
+
+        [HttpPost("{id}/knockout/generate")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GenerateKnockoutBracket(int id, [FromBody] GenerateKnockoutBracketDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _knockoutService.GenerateBracketAsync(id, dto);
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { message = result.ErrorMessage });
+            }
+
+            return Ok(result.Bracket);
+        }
+
+        [HttpGet("{id}/knockout/bracket")]
+        public async Task<IActionResult> GetKnockoutBracket(int id)
+        {
+            var bracket = await _knockoutService.GetBracketAsync(id);
+            if (bracket == null)
+            {
+                return NotFound(new { message = "Không tìm thấy giải đấu." });
+            }
+            return Ok(bracket);
+        }
+
+        [HttpDelete("{id}/knockout")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetKnockoutBracket(int id)
+        {
+            var result = await _knockoutService.ResetBracketAsync(id);
+            if (!result.IsSuccess)
+            {
+                if (result.ErrorMessage == "Không tìm thấy giải đấu.")
+                {
+                    return NotFound(new { message = result.ErrorMessage });
+                }
+                return BadRequest(new { message = result.ErrorMessage });
+            }
+            return Ok(new { message = "Đã xóa nhánh đấu Knockout thành công. Bạn có thể sắp xếp lại cặp đấu mới." });
         }
     }
 }

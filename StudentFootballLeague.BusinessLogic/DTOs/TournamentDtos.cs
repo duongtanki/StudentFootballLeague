@@ -26,6 +26,13 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         [Range(8, 32, ErrorMessage = "Số đội tối đa chỉ trong khoảng 8, 12, 16, 24, 32")]
         public int MaxTeams { get; set; } = 8;
 
+        [Range(1, 8, ErrorMessage = "Số bảng đấu từ 1 đến 8")]
+        public int GroupCount { get; set; } = 2;
+
+        public int KnockoutTeamCount { get; set; } = 8; // 0, 4, 8, 16
+
+        public bool HasThirdPlaceMatch { get; set; } = true;
+
         [Range(7, 25, ErrorMessage = "Số cầu thủ tối thiểu từ 7 trở lên")]
         public int MinPlayersPerTeam { get; set; } = 7;
 
@@ -50,6 +57,16 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
             {
                 yield return new ValidationResult("Số cầu thủ tối thiểu không được lớn hơn số cầu thủ tối đa.", new[] { nameof(MinPlayersPerTeam) });
             }
+
+            if (KnockoutTeamCount != 0 && KnockoutTeamCount != 4 && KnockoutTeamCount != 8 && KnockoutTeamCount != 16)
+            {
+                yield return new ValidationResult("Số đội vào vòng Knockout chỉ có thể là 0 (không có), 4 (Bán kết), 8 (Tứ kết) hoặc 16 (Vòng 1/8).", new[] { nameof(KnockoutTeamCount) });
+            }
+
+            if (KnockoutTeamCount > MaxTeams)
+            {
+                yield return new ValidationResult("Số đội vào vòng Knockout không được lớn hơn Số đội tối đa của giải.", new[] { nameof(KnockoutTeamCount) });
+            }
         }
     }
 
@@ -66,6 +83,12 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public DateTime EndDate { get; set; }
         public DateTime RegistrationDeadline { get; set; }
         public int MaxTeams { get; set; }
+        public int GroupCount { get; set; }
+        public int KnockoutTeamCount { get; set; }
+        public bool HasThirdPlaceMatch { get; set; }
+        public int? ChampionTeamId { get; set; }
+        public string? ChampionTeamName { get; set; }
+        public bool HasKnockoutBracket { get; set; }
         public int MinPlayersPerTeam { get; set; }
         public int MaxPlayersPerTeam { get; set; }
         public string Status { get; set; } = string.Empty;

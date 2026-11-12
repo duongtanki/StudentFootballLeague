@@ -1,0 +1,179 @@
+@model StudentFootballLeague.BusinessLogic.DTOs.KnockoutBracketReadDto
+@{
+    var rounds = Model?.Rounds ?? new List<StudentFootballLeague.BusinessLogic.DTOs.KnockoutRoundReadDto>();
+    var mainRounds = rounds.Where(r => r.KnockoutRound != 3).OrderByDescending(r => r.KnockoutRound).ToList();
+    var thirdPlaceRound = rounds.FirstOrDefault(r => r.KnockoutRound == 3);
+}
+
+@if (Model == null || !rounds.Any())
+{
+    <div class="apex-panel p-5 text-center text-muted">
+        <i class="bi bi-diagram-3 fs-1 d-block mb-2" style="color: var(--apex-violet-soft);"></i>
+        <h5 class="fw-bold text-white">Chưa thiết lập Sơ đồ Vòng Knockout</h5>
+        <p class="mb-0">Ban tổ chức sẽ cập nhật cây đấu phân nhánh ngay sau khi có kết quả bốc thăm chính thức.</p>
+    </div>
+}
+else
+{
+    @if (Model.ChampionTeamId.HasValue && !string.IsNullOrEmpty(Model.ChampionTeamName))
+    {
+        <div class="apex-panel p-4 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3"
+             style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(233, 0, 82, 0.14)); border-color: rgba(251, 191, 36, 0.45);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="apex-crest apex-crest--lg" style="background: linear-gradient(135deg, #fbbf24, #d97706); color: #1c051f; border-color: #fde68a;">
+                    <i class="bi bi-trophy-fill"></i>
+                </div>
+                <div>
+                    <div class="apex-label-caps" style="color: #fde68a;">Nhà vô địch giải đấu</div>
+                    <h3 class="apex-display fw-bold fs-2 text-white mb-0">@Model.ChampionTeamName</h3>
+                </div>
+            </div>
+            <span class="apex-badge apex-badge--live px-3 py-2">CHAMPION • @Model.TournamentName</span>
+        </div>
+    }
+
+    <div class="row g-4 align-items-stretch">
+        @foreach (var round in mainRounds)
+        {
+            var colClass = mainRounds.Count >= 4 ? "col-xl-3 col-md-6" : (mainRounds.Count == 3 ? "col-lg-4" : "col-lg-6");
+            <div class="@colClass d-flex flex-column">
+                <div class="apex-panel-header rounded-top mb-3" style="border: 1px solid var(--apex-border); border-radius: 8px;">
+                    <span class="apex-display fw-bold fs-5 text-white text-uppercase">
+                        <i class="bi bi-diagram-3 me-2" style="color: var(--apex-crimson);"></i>@round.RoundName
+                    </span>
+                    <span class="apex-badge apex-badge--scheduled">@round.Matches.Count trận</span>
+                </div>
+
+                <div class="d-flex flex-column justify-content-around gap-3 flex-grow-1">
+                    @foreach (var m in round.Matches)
+                    {
+                        var isHomeWin = m.WinnerTeamId.HasValue && m.WinnerTeamId == m.HomeTeamId;
+                        var isAwayWin = m.WinnerTeamId.HasValue && m.WinnerTeamId == m.AwayTeamId;
+                        var isLive = m.Status == "InProgress";
+                        var showScore = isLive || m.Status == "Completed";
+                        var isBranch1 = string.Equals(m.BranchName, "Nhánh 1", StringComparison.OrdinalIgnoreCase);
+                        var isBranch2 = string.Equals(m.BranchName, "Nhánh 2", StringComparison.OrdinalIgnoreCase);
+
+                        <div class="apex-match-card @(isLive ? "apex-match-card--live" : "") p-3"
+                             style="border-left: 3px solid @(isBranch1 ? "var(--apex-mint)" : (isBranch2 ? "var(--apex-crimson)" : "#fbbf24"));">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom" style="border-color: var(--apex-border-subtle) !important;">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="badge bg-dark border">#@m.MatchId</span>
+                                    @if (!string.IsNullOrEmpty(m.BranchName))
+                                    {
+                                        <span class="apex-label-caps" style="color: @(isBranch1 ? "var(--apex-mint)" : (isBranch2 ? "var(--apex-pink-soft)" : "#fbbf24"));">
+                                            @m.BranchName @(m.BracketOrder.HasValue && m.KnockoutRound > 2 ? $"• Trận {m.BracketOrder}" : "")
+                                        </span>
+                                    }
+                                </div>
+                                <match-status status="@m.Status"></match-status>
+                            </div>
+
+                            <!-- Home Team Row -->
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded-2 mb-1"
+                                 style="background: @(isHomeWin ? "rgba(0, 228, 118, 0.12)" : "rgba(28, 5, 31, 0.55)"); border: 1px solid @(isHomeWin ? "rgba(0, 228, 118, 0.45)" : "var(--apex-border-subtle)");">
+                                <div class="min-w-0 pe-2">
+                                    <div class="small fw-bold text-truncate @(m.HomeTeamId.HasValue ? "text-white" : "text-muted fst-italic")">
+                                        @m.HomeTeamName
+                                        @if (isHomeWin)
+                                        {
+                                            <i class="bi bi-check-circle-fill ms-1" style="color: var(--apex-mint);"></i>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(m.HomeSourceLabel) && m.HomeTeamId.HasValue)
+                                    {
+                                        <div style="font-size: 0.7rem;" class="text-muted">@m.HomeSourceLabel</div>
+                                    }
+                                </div>
+                                <span class="apex-display fw-bold fs-4 apex-tabular @(isHomeWin ? "text-white" : "text-muted")">
+                                    @(showScore ? m.HomeScore?.ToString() : "-")
+                                </span>
+                            </div>
+
+                            <!-- Away Team Row -->
+                            <div class="d-flex justify-content-between align-items-center p-2 rounded-2"
+                                 style="background: @(isAwayWin ? "rgba(0, 228, 118, 0.12)" : "rgba(28, 5, 31, 0.55)"); border: 1px solid @(isAwayWin ? "rgba(0, 228, 118, 0.45)" : "var(--apex-border-subtle)");">
+                                <div class="min-w-0 pe-2">
+                                    <div class="small fw-bold text-truncate @(m.AwayTeamId.HasValue ? "text-white" : "text-muted fst-italic")">
+                                        @m.AwayTeamName
+                                        @if (isAwayWin)
+                                        {
+                                            <i class="bi bi-check-circle-fill ms-1" style="color: var(--apex-mint);"></i>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(m.AwaySourceLabel) && m.AwayTeamId.HasValue)
+                                    {
+                                        <div style="font-size: 0.7rem;" class="text-muted">@m.AwaySourceLabel</div>
+                                    }
+                                </div>
+                                <span class="apex-display fw-bold fs-4 apex-tabular @(isAwayWin ? "text-white" : "text-muted")">
+                                    @(showScore ? m.AwayScore?.ToString() : "-")
+                                </span>
+                            </div>
+
+                            @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
+                            {
+                                <div class="mt-2 text-center small fw-semibold apex-tabular" style="color: var(--apex-violet-soft);">
+                                    <i class="bi bi-bullseye me-1"></i>Luân lưu: @m.HomePenalty - @m.AwayPenalty
+                                </div>
+                            }
+
+                            <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center gap-2" style="border-color: var(--apex-border-subtle) !important;">
+                                <small class="text-muted text-truncate apex-tabular" title="@m.PitchName">
+                                    <i class="bi bi-clock me-1"></i>@m.MatchDateTime.ToString("HH:mm dd/MM") • @m.PitchName
+                                </small>
+                                <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="btn btn-sm btn-apex-ghost py-0 px-2 flex-shrink-0">
+                                    Chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (thirdPlaceRound != null && thirdPlaceRound.Matches.Any())
+    {
+        <div class="mt-4">
+            <div class="apex-panel p-3" style="border-color: rgba(251, 191, 36, 0.3);">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="apex-display fw-bold fs-5 mb-0 text-white">
+                        <i class="bi bi-award me-2" style="color: #fbbf24;"></i>TRẬN TRANH HẠNG BA
+                    </h4>
+                </div>
+                <div class="row g-3">
+                    @foreach (var m in thirdPlaceRound.Matches)
+                    {
+                        var isHomeWin = m.WinnerTeamId.HasValue && m.WinnerTeamId == m.HomeTeamId;
+                        var isAwayWin = m.WinnerTeamId.HasValue && m.WinnerTeamId == m.AwayTeamId;
+                        var showScore = m.Status == "InProgress" || m.Status == "Completed";
+                        <div class="col-md-6">
+                            <div class="apex-match-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="small text-muted apex-tabular">#@m.MatchId • @m.MatchDateTime.ToString("HH:mm dd/MM/yyyy") • @m.PitchName</span>
+                                    <match-status status="@m.Status"></match-status>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                    <span class="fw-bold @(isHomeWin ? "text-white" : (m.HomeTeamId.HasValue ? "text-white" : "text-muted fst-italic"))">
+                                        @m.HomeTeamName @(isHomeWin ? "🥉" : "")
+                                    </span>
+                                    <span class="apex-display fw-bold fs-4 text-white apex-tabular">
+                                        @(showScore ? $"{m.HomeScore} - {m.AwayScore}" : "VS")
+                                    </span>
+                                    <span class="fw-bold @(isAwayWin ? "text-white" : (m.AwayTeamId.HasValue ? "text-white" : "text-muted fst-italic"))">
+                                        @m.AwayTeamName @(isAwayWin ? "🥉" : "")
+                                    </span>
+                                </div>
+                                @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
+                                {
+                                    <div class="text-center small mt-1" style="color: var(--apex-violet-soft);">Luân lưu: @m.HomePenalty - @m.AwayPenalty</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}

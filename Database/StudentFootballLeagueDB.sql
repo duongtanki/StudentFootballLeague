@@ -63,10 +63,15 @@ CREATE TABLE Tournaments (
     EndDate DATE NOT NULL,
     RegistrationDeadline DATETIME2 NOT NULL,
     MaxTeams INT NOT NULL CONSTRAINT CK_Tournaments_MaxTeams CHECK (MaxTeams IN (8, 12, 16, 24, 32)),
+    GroupCount INT NOT NULL CONSTRAINT DF_Tournaments_GroupCount DEFAULT 2,
+    KnockoutTeamCount INT NOT NULL CONSTRAINT DF_Tournaments_KnockoutTeamCount DEFAULT 4,
+    HasThirdPlaceMatch BIT NOT NULL CONSTRAINT DF_Tournaments_HasThirdPlace DEFAULT 1,
+    ChampionTeamId INT NULL,
     MinPlayersPerTeam INT NOT NULL CONSTRAINT DF_Tournaments_MinPlayers DEFAULT 7,
     MaxPlayersPerTeam INT NOT NULL CONSTRAINT DF_Tournaments_MaxPlayers DEFAULT 15,
     Status VARCHAR(30) NOT NULL CONSTRAINT DF_Tournaments_Status DEFAULT 'Registering',
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Tournaments_CreatedAt DEFAULT GETDATE(),
+    CONSTRAINT FK_Tournaments_ChampionTeam FOREIGN KEY (ChampionTeamId) REFERENCES Teams(TeamId),
     CONSTRAINT CK_Tournaments_Dates CHECK (EndDate > StartDate AND RegistrationDeadline <= StartDate),
     CONSTRAINT CK_Tournaments_Status CHECK (Status IN ('Registering', 'Ongoing', 'Completed', 'Cancelled'))
 );
@@ -148,8 +153,19 @@ CREATE TABLE Matches (
     TournamentId INT NOT NULL,
     GroupName VARCHAR(20) NULL,
     RoundName NVARCHAR(50) NOT NULL,
-    HomeTeamId INT NOT NULL,
-    AwayTeamId INT NOT NULL,
+    Stage VARCHAR(20) NOT NULL CONSTRAINT DF_Matches_Stage DEFAULT 'Group',
+    KnockoutRound INT NULL,
+    BranchName NVARCHAR(30) NULL,
+    BracketOrder INT NULL,
+    HomeSourceLabel NVARCHAR(60) NULL,
+    AwaySourceLabel NVARCHAR(60) NULL,
+    HomeTeamId INT NULL,
+    AwayTeamId INT NULL,
+    WinnerTeamId INT NULL,
+    NextMatchId INT NULL,
+    NextMatchSlot VARCHAR(10) NULL,
+    LoserNextMatchId INT NULL,
+    LoserNextMatchSlot VARCHAR(10) NULL,
     MatchDateTime DATETIME2 NOT NULL,
     PitchName NVARCHAR(100) NOT NULL,
     RefereeId INT NULL,
@@ -162,8 +178,11 @@ CREATE TABLE Matches (
     CONSTRAINT FK_Matches_Tournaments FOREIGN KEY (TournamentId) REFERENCES Tournaments(TournamentId),
     CONSTRAINT FK_Matches_HomeTeam FOREIGN KEY (HomeTeamId) REFERENCES Teams(TeamId) ON DELETE NO ACTION,
     CONSTRAINT FK_Matches_AwayTeam FOREIGN KEY (AwayTeamId) REFERENCES Teams(TeamId) ON DELETE NO ACTION,
+    CONSTRAINT FK_Matches_WinnerTeam FOREIGN KEY (WinnerTeamId) REFERENCES Teams(TeamId) ON DELETE NO ACTION,
+    CONSTRAINT FK_Matches_NextMatch FOREIGN KEY (NextMatchId) REFERENCES Matches(MatchId) ON DELETE NO ACTION,
+    CONSTRAINT FK_Matches_LoserNextMatch FOREIGN KEY (LoserNextMatchId) REFERENCES Matches(MatchId) ON DELETE NO ACTION,
     CONSTRAINT FK_Matches_Referee FOREIGN KEY (RefereeId) REFERENCES Users(UserId) ON DELETE SET NULL,
-    CONSTRAINT CK_Matches_DifferentTeams CHECK (HomeTeamId <> AwayTeamId),
+    CONSTRAINT CK_Matches_DifferentTeams CHECK (HomeTeamId IS NULL OR AwayTeamId IS NULL OR HomeTeamId <> AwayTeamId),
     CONSTRAINT CK_Matches_Status CHECK (Status IN ('Scheduled', 'InProgress', 'Completed', 'Postponed', 'Cancelled'))
 );
 GO
@@ -231,11 +250,11 @@ VALUES
 GO
 
 -- 2. Tournaments
-INSERT INTO Tournaments (Name, Season, StartDate, EndDate, RegistrationDeadline, MaxTeams, MinPlayersPerTeam, MaxPlayersPerTeam, Status)
+INSERT INTO Tournaments (Name, Season, StartDate, EndDate, RegistrationDeadline, MaxTeams, GroupCount, KnockoutTeamCount, HasThirdPlaceMatch, ChampionTeamId, MinPlayersPerTeam, MaxPlayersPerTeam, Status)
 VALUES 
-(N'Giải Bóng đá Sinh viên FPT Cup Mùa Thu 2026', 'Fall 2026', '2026-11-01', '2026-11-30', '2026-10-28 23:59:59', 8, 7, 15, 'Ongoing'),
-(N'Giải Bóng đá Tân Sinh viên Mở rộng Mùa Xuân 2027', 'Spring 2027', '2027-03-01', '2027-03-31', '2027-02-20 23:59:59', 16, 7, 15, 'Registering'),
-(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 7, 15, 'Completed');
+(N'Giải Bóng đá Sinh viên FPT Cup Mùa Thu 2026', 'Fall 2026', '2026-11-01', '2026-11-30', '2026-10-28 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Ongoing'),
+(N'Giải Bóng đá Tân Sinh viên Mở rộng Mùa Xuân 2027', 'Spring 2027', '2027-03-01', '2027-03-31', '2027-02-20 23:59:59', 16, 4, 8, 1, NULL, 7, 15, 'Registering'),
+(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 2, 4, 1, 1, 7, 15, 'Completed');
 GO
 
 -- 3. Teams (8 đội thuộc các chuyên ngành)
@@ -365,19 +384,30 @@ VALUES
 (1, 'Group A', N'Vòng Bảng - Lượt 3', 1, 4, '2026-11-12 16:00:00', N'Sân cỏ nhân tạo số 1 - Khu Thể chất', 2, 1, 1, NULL, NULL, 'InProgress'),
 (1, 'Group A', N'Vòng Bảng - Lượt 3', 2, 3, '2026-11-12 18:00:00', N'Sân cỏ nhân tạo số 1 - Khu Thể chất', 7, NULL, NULL, NULL, NULL, 'Scheduled'),
 (1, 'Group B', N'Vòng Bảng - Lượt 3', 5, 8, '2026-11-14 16:00:00', N'Sân cỏ nhân tạo số 2 - Khu Thể chất', 2, NULL, NULL, NULL, NULL, 'Scheduled'),
-(1, 'Group B', N'Vòng Bảng - Lượt 3', 6, 7, '2026-11-14 18:00:00', N'Sân cỏ nhân tạo số 2 - Khu Thể chất', 7, NULL, NULL, NULL, NULL, 'Scheduled'),
-(1, NULL, N'Bán Kết', 1, 7, '2026-11-19 16:30:00', N'Sân vận động chính - Khu Thể chất', 2, NULL, NULL, NULL, NULL, 'Scheduled'),
-(1, NULL, N'Bán Kết', 4, 5, '2026-11-19 18:30:00', N'Sân vận động chính - Khu Thể chất', 7, NULL, NULL, NULL, NULL, 'Scheduled'),
+(1, 'Group B', N'Vòng Bảng - Lượt 3', 6, 7, '2026-11-14 18:00:00', N'Sân cỏ nhân tạo số 2 - Khu Thể chất', 7, NULL, NULL, NULL, NULL, 'Scheduled');
+
+INSERT INTO Matches (TournamentId, GroupName, RoundName, Stage, KnockoutRound, BranchName, BracketOrder, HomeSourceLabel, AwaySourceLabel, HomeTeamId, AwayTeamId, WinnerTeamId, NextMatchId, NextMatchSlot, MatchDateTime, PitchName, RefereeId, HomeScore, AwayScore, HomePenalty, AwayPenalty, Status)
+VALUES
+(1, NULL, N'Bán Kết', 'Knockout', 4, N'Nhánh 1', 1, N'Nhất Bảng A', N'Nhì Bảng B', 1, 7, NULL, NULL, NULL, '2026-11-19 16:30:00', N'Sân vận động chính - Khu Thể chất', 2, NULL, NULL, NULL, NULL, 'Scheduled'),
+(1, NULL, N'Bán Kết', 'Knockout', 4, N'Nhánh 2', 2, N'Nhất Bảng B', N'Nhì Bảng A', 4, 5, NULL, NULL, NULL, '2026-11-19 18:30:00', N'Sân vận động chính - Khu Thể chất', 7, NULL, NULL, NULL, NULL, 'Scheduled');
+
 -- Giải 3: Summer 2026 (Completed)
+INSERT INTO Matches (TournamentId, GroupName, RoundName, HomeTeamId, AwayTeamId, MatchDateTime, PitchName, RefereeId, HomeScore, AwayScore, HomePenalty, AwayPenalty, Status)
+VALUES
 (3, 'Group A', N'Vòng Bảng - Lượt 1', 1, 2, '2026-07-05 16:00:00', N'Sân cỏ nhân tạo số 1', 2, 3, 1, NULL, NULL, 'Completed'),
 (3, 'Group A', N'Vòng Bảng - Lượt 1', 3, 4, '2026-07-05 18:00:00', N'Sân cỏ nhân tạo số 1', 7, 2, 2, NULL, NULL, 'Completed'),
 (3, 'Group B', N'Vòng Bảng - Lượt 1', 5, 6, '2026-07-06 16:00:00', N'Sân cỏ nhân tạo số 2', 2, 1, 2, NULL, NULL, 'Completed'),
 (3, 'Group B', N'Vòng Bảng - Lượt 1', 7, 8, '2026-07-06 18:00:00', N'Sân cỏ nhân tạo số 2', 7, 2, 0, NULL, NULL, 'Completed'),
 (3, 'Group A', N'Vòng Bảng - Lượt 2', 1, 4, '2026-07-10 17:00:00', N'Sân cỏ nhân tạo số 1', 2, 2, 0, NULL, NULL, 'Completed'),
-(3, 'Group B', N'Vòng Bảng - Lượt 2', 6, 7, '2026-07-10 19:00:00', N'Sân cỏ nhân tạo số 2', 7, 2, 1, NULL, NULL, 'Completed'),
-(3, NULL, N'Bán Kết', 1, 7, '2026-07-16 17:00:00', N'Sân vận động chính', 2, 3, 1, NULL, NULL, 'Completed'),
-(3, NULL, N'Bán Kết', 6, 2, '2026-07-16 19:00:00', N'Sân vận động chính', 7, 2, 1, NULL, NULL, 'Completed'),
-(3, NULL, N'Chung Kết', 1, 6, '2026-07-22 18:00:00', N'Sân vận động chính', 2, 2, 2, 4, 3, 'Completed');
+(3, 'Group B', N'Vòng Bảng - Lượt 2', 6, 7, '2026-07-10 19:00:00', N'Sân cỏ nhân tạo số 2', 7, 2, 1, NULL, NULL, 'Completed');
+
+INSERT INTO Matches (TournamentId, GroupName, RoundName, Stage, KnockoutRound, BranchName, BracketOrder, HomeSourceLabel, AwaySourceLabel, HomeTeamId, AwayTeamId, WinnerTeamId, NextMatchId, NextMatchSlot, MatchDateTime, PitchName, RefereeId, HomeScore, AwayScore, HomePenalty, AwayPenalty, Status)
+VALUES
+(3, NULL, N'Bán Kết', 'Knockout', 4, N'Nhánh 1', 1, NULL, NULL, 1, 7, 1, NULL, 'Home', '2026-07-16 17:00:00', N'Sân vận động chính', 2, 3, 1, NULL, NULL, 'Completed'),
+(3, NULL, N'Bán Kết', 'Knockout', 4, N'Nhánh 2', 2, NULL, NULL, 6, 2, 6, NULL, 'Away', '2026-07-16 19:00:00', N'Sân vận động chính', 7, 2, 1, NULL, NULL, 'Completed'),
+(3, NULL, N'Chung Kết', 'Knockout', 2, N'Chung Kết', 1, N'Thắng Bán Kết 1', N'Thắng Bán Kết 2', 1, 6, 1, NULL, NULL, '2026-07-22 18:00:00', N'Sân vận động chính', 2, 2, 2, 4, 3, 'Completed');
+
+UPDATE Matches SET NextMatchId = 23 WHERE MatchId IN (21, 22);
 GO
 
 -- 7. MatchEvents

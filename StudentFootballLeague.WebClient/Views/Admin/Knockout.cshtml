@@ -1,0 +1,611 @@
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Thiết lập & Sắp xếp Vòng Knockout";
+    var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
+    var selectedTour = ViewBag.SelectedTournament as StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto;
+    var setup = ViewBag.KnockoutSetup as StudentFootballLeague.BusinessLogic.DTOs.KnockoutSetupReadDto;
+    var bracket = ViewBag.KnockoutBracket as StudentFootballLeague.BusinessLogic.DTOs.KnockoutBracketReadDto;
+    var referees = ViewBag.Referees as List<StudentFootballLeague.WebClient.Controllers.RefereeOptionDto> ?? new List<StudentFootballLeague.WebClient.Controllers.RefereeOptionDto>();
+
+    var approvedTeams = setup?.ApprovedTeams ?? new List<StudentFootballLeague.BusinessLogic.DTOs.QualifiedTeamOptionDto>();
+    var suggestedJson = JsonSerializer.Serialize(setup?.SuggestedPairs ?? new List<StudentFootballLeague.BusinessLogic.DTOs.KnockoutPairInputDto>());
+    var defaultBaseDate = (setup != null && setup.EndDate.Date > DateTime.Today)
+        ? setup.EndDate.Date.AddDays(-6).AddHours(15).AddMinutes(30)
+        : DateTime.Today.AddDays(1).AddHours(15).AddMinutes(30);
+    var defaultSfDate = defaultBaseDate.AddDays(3).Date.AddHours(16);
+    var defaultThirdDate = defaultBaseDate.AddDays(6).Date.AddHours(15).AddMinutes(30);
+    var defaultFinalDate = defaultBaseDate.AddDays(6).Date.AddHours(18);
+    int initialStartPairs = approvedTeams.Count >= 8
+        ? (setup?.KnockoutTeamCount == 4 ? 2 : (setup?.KnockoutTeamCount == 16 && approvedTeams.Count >= 16 ? 8 : 4))
+        : 2;
+}
+
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div>
+        <div class="apex-label-caps mb-1" style="color: var(--apex-mint);">Phân hệ quản trị • Knockout Bracket Builder</div>
+        <h1 class="apex-display fw-bold mb-1" style="font-size: clamp(2rem, 3.6vw, 2.9rem);">THIẾT LẬP &amp; PHÂN NHÁNH VÒNG KNOCKOUT</h1>
+        <p class="text-muted mb-0">Điền và sắp xếp các cặp đấu theo kết quả bốc thăm thực tế vào 2 nhánh đấu — hệ thống tự động sinh trọn bộ cây đấu đến Chung Kết.</p>
+    </div>
+
+    <form method="get" class="d-flex align-items-center gap-2">
+        <label class="apex-label-caps text-muted mb-0">Mùa giải:</label>
+        <select name="tournamentId" class="form-select form-select-sm" style="min-width: 260px;" onchange="this.form.submit()">
+            @foreach (var t in tournaments)
+            {
+                <option value="@t.TournamentId" selected="@(selectedTour?.TournamentId == t.TournamentId ? "selected" : null)">
+                    @t.Name (@t.Season)
+                </option>
+            }
+        </select>
+    </form>
+</div>
+
+@if (setup == null)
+{
+    <div class="apex-panel p-5 text-center text-muted">
+        <i class="bi bi-trophy fs-1 d-block mb-2"></i>
+        <h5 class="text-white fw-bold">Chưa có mùa giải nào để cấu hình</h5>
+        <a asp-action="Tournaments" class="btn btn-apex-primary mt-2">Quay lại Quản lý Giải đấu</a>
+    </div>
+}
+else
+{
+    <!-- Status Bar -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Đội đã duyệt</div>
+                <div class="apex-kpi-value" style="color: var(--apex-mint);">@approvedTeams.Count</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Tiến độ vòng bảng</div>
+                <div class="apex-kpi-value apex-tabular">@setup.CompletedGroupMatchesCount / @setup.TotalGroupMatchesCount</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Thể thức Knockout</div>
+                <div class="apex-kpi-value" style="color: var(--apex-violet-soft);">Top @setup.KnockoutTeamCount</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="apex-kpi-card">
+                <div class="apex-label-caps text-muted mb-1">Trạng thái cây đấu</div>
+                <div class="mt-2">
+                    @if (setup.HasExistingBracket)
+                    {
+                        <span class="apex-badge apex-badge--live">Đã thiết lập nhánh</span>
+                    }
+                    else
+                    {
+                        <span class="apex-badge apex-badge--postponed">Chưa tạo nhánh</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BXH Tham chiếu nhanh -->
+    @if (setup.GroupStandings.Any())
+    {
+        <div class="apex-panel overflow-hidden mb-4">
+            <div class="apex-panel-header">
+                <h2 class="apex-display fw-bold fs-5 mb-0 text-white">
+                    <i class="bi bi-list-ol me-2" style="color: var(--apex-mint);"></i>BẢNG XẾP HẠNG VÒNG BẢNG (ĐỐI CHIẾU KẾT QUẢ BỐC THĂM)
+                </h2>
+                <button class="btn btn-sm btn-apex-ghost" type="button" data-bs-toggle="collapse" data-bs-target="#standingsRefCollapse">
+                    Ẩn / Hiện BXH
+                </button>
+            </div>
+            <div class="collapse show p-3" id="standingsRefCollapse">
+                <div class="row g-3">
+                    @foreach (var gb in setup.GroupStandings)
+                    {
+                        <div class="col-lg-6">
+                            <div class="p-3 rounded-2" style="background: rgba(28, 5, 31, 0.55); border: 1px solid var(--apex-border);">
+                                <div class="apex-label-caps mb-2" style="color: var(--apex-violet-soft);">@gb.GroupName</div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm apex-table mb-0 apex-tabular">
+                                        <thead>
+                                            <tr class="text-center">
+                                                <th>#</th>
+                                                <th class="text-start">Đội</th>
+                                                <th>Tr</th>
+                                                <th>HS</th>
+                                                <th>Điểm</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var s in gb.Standings)
+                                            {
+                                                <tr class="text-center @(s.Rank <= 2 ? "apex-qualified" : "")">
+                                                    <td class="fw-bold text-white">@s.Rank</td>
+                                                    <td class="text-start fw-semibold text-white">@s.TeamName</td>
+                                                    <td>@s.MatchesPlayed</td>
+                                                    <td>@(s.GoalDifference > 0 ? $"+{s.GoalDifference}" : s.GoalDifference.ToString())</td>
+                                                    <td class="fw-bold" style="color: var(--apex-mint);">@s.Points</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (setup.HasExistingBracket && bracket != null)
+    {
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <h2 class="apex-section-title">
+                <span class="apex-section-accent"></span>
+                <span>Cây đấu Knockout hiện tại</span>
+            </h2>
+            <div class="d-flex gap-2">
+                <a asp-action="Matches" class="btn btn-apex-primary btn-sm px-3">
+                    <i class="bi bi-calendar2-week me-1"></i>Điều hành lịch &amp; Tỷ số
+                </a>
+                @if (setup.CanResetBracket)
+                {
+                    <form asp-action="ResetKnockout" method="post" onsubmit="return confirm('Xóa toàn bộ nhánh Knockout hiện tại để điền và sắp xếp lại?');">
+                        <input type="hidden" name="tournamentId" value="@setup.TournamentId" />
+                        <button type="submit" class="btn btn-outline-danger btn-sm px-3">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Xóa nhánh để sắp xếp lại
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        @await Html.PartialAsync("_KnockoutBracketPartial", bracket)
+    }
+    else if (approvedTeams.Count < 4)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Giải đấu hiện mới có <strong>@approvedTeams.Count</strong> đội được duyệt. Cần tối thiểu <strong>4 đội</strong> để thiết lập vòng Knockout.
+        </div>
+    }
+    else
+    {
+        @if (!setup.IsGroupStageCompleted)
+        {
+            <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" style="background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.4); color: #fde68a;">
+                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                <div>
+                    Vòng bảng vẫn còn <strong>@setup.RemainingGroupMatchesCount</strong> trận chưa hoàn thành. Bạn vẫn có thể điền trước danh sách đội sau khi đã chốt kết quả bốc thăm thực tế.
+                </div>
+            </div>
+        }
+
+        <form asp-action="GenerateKnockout" method="post" id="knockoutBuilderForm" onsubmit="return validateKnockoutForm();">
+            <input type="hidden" name="tournamentId" value="@setup.TournamentId" />
+
+            <!-- Thanh công cụ chọn quy mô & điền nhanh -->
+            <div class="apex-panel p-4 mb-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small apex-label-caps">Vòng Knockout khởi đầu</label>
+                        <select id="startPairsCountSelect" class="form-select" onchange="switchKnockoutSize()">
+                            @if (approvedTeams.Count >= 8)
+                            {
+                                <option value="4" selected="@(initialStartPairs == 4 ? "selected" : null)">Tứ Kết (8 đội — 4 cặp chia 2 nhánh)</option>
+                            }
+                            <option value="2" selected="@(initialStartPairs == 2 ? "selected" : null)">Bán Kết (4 đội — 2 cặp chia 2 nhánh)</option>
+                            @if (approvedTeams.Count >= 16)
+                            {
+                                <option value="8" selected="@(initialStartPairs == 8 ? "selected" : null)">Vòng 1/8 (16 đội — 8 cặp chia 2 nhánh)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="HasThirdPlaceMatch" id="koHasThirdPlace" value="true" checked="@(setup.HasThirdPlaceMatch ? "checked" : null)" onchange="toggleThirdPlaceConfig()" />
+                            <label class="form-check-label text-white small" for="koHasThirdPlace">Có trận Tranh Hạng Ba</label>
+                        </div>
+                    </div>
+                    <div class="col-md-5 d-flex justify-content-md-end gap-2 flex-wrap">
+                        <button type="button" class="btn btn-apex-violet btn-sm px-3" onclick="fillSuggestedPairs()">
+                            <i class="bi bi-magic me-1"></i>Điền gợi ý nhanh từ BXH
+                        </button>
+                        <button type="button" class="btn btn-apex-ghost btn-sm px-3" onclick="clearTeamSelections()">
+                            <i class="bi bi-eraser me-1"></i>Xóa chọn đội
+                        </button>
+                    </div>
+                </div>
+
+                <div id="duplicateTeamWarning" class="alert alert-danger mt-3 mb-0 py-2 small d-none">
+                    <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                    <span id="duplicateTeamWarningText">Có đội bóng đang bị chọn trùng nhiều hơn 1 lần hoặc Chủ nhà trùng Đội khách.</span>
+                </div>
+            </div>
+
+            <!-- Khu vực phân nhánh & điền cặp đấu -->
+            <div class="row g-4 mb-4">
+                <!-- NHÁNH 1 -->
+                <div class="col-lg-6">
+                    <div class="apex-panel h-100 overflow-hidden" style="border-top: 3px solid var(--apex-mint);">
+                        <div class="apex-panel-header">
+                            <h3 class="apex-display fw-bold fs-4 mb-0" style="color: var(--apex-mint);">
+                                <i class="bi bi-signpost-split me-2"></i>NHÁNH 1 (BRANCH 1 → BÁN KẾT 1)
+                            </h3>
+                            <span class="apex-badge apex-badge--live">Nhánh trái</span>
+                        </div>
+                        <div class="p-3 p-md-4 d-flex flex-column gap-3" id="branch1Container">
+                            @for (int i = 0; i < 4; i++)
+                            {
+                                var matchNum = i + 1;
+                                var dtVal = defaultBaseDate.AddHours(i * 2).ToString("yyyy-MM-ddTHH:mm");
+                                var pitchVal = i % 2 == 0 ? "Sân cỏ nhân tạo số 1 - Khu Thể chất" : "Sân cỏ nhân tạo số 2 - Khu Thể chất";
+                                <div class="p-3 rounded-2 ko-pair-card" data-pair-index="@i" data-branch="1"
+                                     style="background: rgba(28, 5, 31, 0.55); border: 1px solid var(--apex-border);">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold text-white pair-title">Trận #@matchNum</span>
+                                        <span class="apex-badge apex-badge--live">Nhánh 1</span>
+                                    </div>
+                                    <input type="hidden" name="Pairs[@i].BracketOrder" value="@matchNum" class="pair-order-input" />
+                                    <input type="hidden" name="Pairs[@i].BranchName" value="Nhánh 1" class="pair-branch-input" />
+
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted mb-1">Đội 1 (Chủ nhà)</label>
+                                            <select name="Pairs[@i].HomeTeamId" class="form-select form-select-sm ko-team-select" required onchange="checkDuplicateTeams()">
+                                                <option value="">-- Chọn đội --</option>
+                                                @foreach (var team in approvedTeams)
+                                                {
+                                                    <option value="@team.TeamId">@team.DisplayLabel</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted mb-1">Đội 2 (Đội khách)</label>
+                                            <select name="Pairs[@i].AwayTeamId" class="form-select form-select-sm ko-team-select" required onchange="checkDuplicateTeams()">
+                                                <option value="">-- Chọn đội --</option>
+                                                @foreach (var team in approvedTeams)
+                                                {
+                                                    <option value="@team.TeamId">@team.DisplayLabel</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <label class="form-label small text-muted mb-1">Thời gian</label>
+                                            <input type="datetime-local" name="Pairs[@i].MatchDateTime" class="form-control form-control-sm" value="@dtVal" required />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted mb-1">Sân thi đấu</label>
+                                            <select name="Pairs[@i].PitchName" class="form-select form-select-sm" required>
+                                                <option value="Sân cỏ nhân tạo số 1 - Khu Thể chất" selected="@(pitchVal.Contains("số 1") ? "selected" : null)">Sân số 1 - Khu Thể chất</option>
+                                                <option value="Sân cỏ nhân tạo số 2 - Khu Thể chất" selected="@(pitchVal.Contains("số 2") ? "selected" : null)">Sân số 2 - Khu Thể chất</option>
+                                                <option value="Sân Vận Động Trung Tâm">Sân Vận Động Trung Tâm</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small text-muted mb-1">Trọng tài</label>
+                                            <select name="Pairs[@i].RefereeId" class="form-select form-select-sm">
+                                                <option value="">Chưa gán</option>
+                                                @foreach (var r in referees)
+                                                {
+                                                    <option value="@r.UserId">@r.FullName</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NHÁNH 2 -->
+                <div class="col-lg-6">
+                    <div class="apex-panel h-100 overflow-hidden" style="border-top: 3px solid var(--apex-crimson);">
+                        <div class="apex-panel-header">
+                            <h3 class="apex-display fw-bold fs-4 mb-0" style="color: var(--apex-pink-soft);">
+                                <i class="bi bi-signpost-split me-2"></i>NHÁNH 2 (BRANCH 2 → BÁN KẾT 2)
+                            </h3>
+                            <span class="apex-badge apex-badge--cancelled">Nhánh phải</span>
+                        </div>
+                        <div class="p-3 p-md-4 d-flex flex-column gap-3" id="branch2Container">
+                            @for (int i = 4; i < 8; i++)
+                            {
+                                var dtVal = defaultBaseDate.AddHours(i * 2).ToString("yyyy-MM-ddTHH:mm");
+                                var pitchVal = i % 2 == 0 ? "Sân cỏ nhân tạo số 1 - Khu Thể chất" : "Sân cỏ nhân tạo số 2 - Khu Thể chất";
+                                <div class="p-3 rounded-2 ko-pair-card" data-pair-index="@i" data-branch="2"
+                                     style="background: rgba(28, 5, 31, 0.55); border: 1px solid var(--apex-border);">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold text-white pair-title">Trận #@(i + 1)</span>
+                                        <span class="apex-badge apex-badge--cancelled">Nhánh 2</span>
+                                    </div>
+                                    <input type="hidden" name="Pairs[@i].BracketOrder" value="@(i + 1)" class="pair-order-input" />
+                                    <input type="hidden" name="Pairs[@i].BranchName" value="Nhánh 2" class="pair-branch-input" />
+
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted mb-1">Đội 1 (Chủ nhà)</label>
+                                            <select name="Pairs[@i].HomeTeamId" class="form-select form-select-sm ko-team-select" required onchange="checkDuplicateTeams()">
+                                                <option value="">-- Chọn đội --</option>
+                                                @foreach (var team in approvedTeams)
+                                                {
+                                                    <option value="@team.TeamId">@team.DisplayLabel</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted mb-1">Đội 2 (Đội khách)</label>
+                                            <select name="Pairs[@i].AwayTeamId" class="form-select form-select-sm ko-team-select" required onchange="checkDuplicateTeams()">
+                                                <option value="">-- Chọn đội --</option>
+                                                @foreach (var team in approvedTeams)
+                                                {
+                                                    <option value="@team.TeamId">@team.DisplayLabel</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <label class="form-label small text-muted mb-1">Thời gian</label>
+                                            <input type="datetime-local" name="Pairs[@i].MatchDateTime" class="form-control form-control-sm" value="@dtVal" required />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted mb-1">Sân thi đấu</label>
+                                            <select name="Pairs[@i].PitchName" class="form-select form-select-sm" required>
+                                                <option value="Sân cỏ nhân tạo số 1 - Khu Thể chất" selected="@(pitchVal.Contains("số 1") ? "selected" : null)">Sân số 1 - Khu Thể chất</option>
+                                                <option value="Sân cỏ nhân tạo số 2 - Khu Thể chất" selected="@(pitchVal.Contains("số 2") ? "selected" : null)">Sân số 2 - Khu Thể chất</option>
+                                                <option value="Sân Vận Động Trung Tâm">Sân Vận Động Trung Tâm</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small text-muted mb-1">Trọng tài</label>
+                                            <select name="Pairs[@i].RefereeId" class="form-select form-select-sm">
+                                                <option value="">Chưa gán</option>
+                                                @foreach (var r in referees)
+                                                {
+                                                    <option value="@r.UserId">@r.FullName</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lịch dự kiến cho các vòng tiếp theo (tự động sinh cùng lúc) -->
+            <div class="apex-panel p-4 mb-4">
+                <h3 class="apex-display fw-bold fs-4 text-white mb-1">
+                    <i class="bi bi-calendar-check me-2" style="color: var(--apex-violet-soft);"></i>LỊCH DỰ KIẾN CÁC VÒNG TIẾP THEO (TỰ ĐỘNG SINH ĐẾN CHUNG KẾT)
+                </h3>
+                <p class="text-muted small mb-3">Hệ thống sẽ tạo sẵn Bán Kết, Tranh Hạng 3 và Chung Kết ở trạng thái chờ đội thắng. Bạn có thể điều chỉnh lại giờ/sân bất kỳ lúc nào tại mục Lập lịch &amp; Nhập tỷ số.</p>
+
+                <div class="row g-3">
+                    <div class="col-md-4" id="sfDefaultScheduleBox">
+                        <div class="p-3 rounded-2" style="background: rgba(28, 5, 31, 0.55); border: 1px solid var(--apex-border);">
+                            <div class="apex-label-caps mb-2" style="color: var(--apex-mint);">Vòng Bán Kết (BK1 &amp; BK2)</div>
+                            <input type="hidden" name="SubsequentRounds[0].KnockoutRound" value="4" />
+                            <label class="form-label small text-muted mb-1">Ngày giờ dự kiến</label>
+                            <input type="datetime-local" name="SubsequentRounds[0].DefaultDateTime" class="form-control form-control-sm mb-2" value="@defaultSfDate.ToString("yyyy-MM-ddTHH:mm")" />
+                            <label class="form-label small text-muted mb-1">Sân dự kiến</label>
+                            <input type="text" name="SubsequentRounds[0].DefaultPitchName" class="form-control form-control-sm" value="Sân Vận Động Trung Tâm" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-4" id="thirdPlaceScheduleBox">
+                        <div class="p-3 rounded-2" style="background: rgba(28, 5, 31, 0.55); border: 1px solid var(--apex-border);">
+                            <div class="apex-label-caps mb-2" style="color: var(--apex-amber);">Trận Tranh Hạng 3</div>
+                            <input type="hidden" name="SubsequentRounds[1].KnockoutRound" value="3" />
+                            <label class="form-label small text-muted mb-1">Ngày giờ dự kiến</label>
+                            <input type="datetime-local" name="SubsequentRounds[1].DefaultDateTime" class="form-control form-control-sm mb-2" value="@defaultThirdDate.ToString("yyyy-MM-ddTHH:mm")" />
+                            <label class="form-label small text-muted mb-1">Sân dự kiến</label>
+                            <input type="text" name="SubsequentRounds[1].DefaultPitchName" class="form-control form-control-sm" value="Sân Vận Động Trung Tâm" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-2" style="background: rgba(28, 5, 31, 0.55); border: 1px solid rgba(251, 191, 36, 0.4);">
+                            <div class="apex-label-caps mb-2" style="color: #fde68a;">Trận Chung Kết</div>
+                            <input type="hidden" name="SubsequentRounds[2].KnockoutRound" value="2" />
+                            <label class="form-label small text-muted mb-1">Ngày giờ dự kiến</label>
+                            <input type="datetime-local" name="SubsequentRounds[2].DefaultDateTime" class="form-control form-control-sm mb-2" value="@defaultFinalDate.ToString("yyyy-MM-ddTHH:mm")" />
+                            <label class="form-label small text-muted mb-1">Sân dự kiến</label>
+                            <input type="text" name="SubsequentRounds[2].DefaultPitchName" class="form-control form-control-sm" value="Sân Vận Động Trung Tâm" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a asp-action="Tournaments" class="btn btn-apex-ghost px-4">Quay lại</a>
+                <button type="submit" class="btn btn-apex-mint px-4 py-2 fw-bold">
+                    <i class="bi bi-diagram-3-fill me-2"></i>Chốt cặp đấu &amp; Tự động thiết lập toàn bộ Vòng Knockout
+                </button>
+            </div>
+        </form>
+    }
+}
+
+@section Scripts {
+    <script>
+        var suggestedPairs = @Html.Raw(suggestedJson);
+
+        function switchKnockoutSize() {
+            var countSelect = document.getElementById('startPairsCountSelect');
+            if (!countSelect) return;
+            var pairCount = parseInt(countSelect.value, 10); // 2, 4, or 8
+            var half = pairCount / 2;
+
+            var cards = Array.from(document.querySelectorAll('.ko-pair-card'));
+            var branch1Cards = cards.filter(function (c) { return c.getAttribute('data-branch') === '1'; });
+            var branch2Cards = cards.filter(function (c) { return c.getAttribute('data-branch') === '2'; });
+
+            var roundLabel = pairCount === 2 ? 'Bán Kết' : (pairCount === 4 ? 'Tứ Kết' : 'Vòng 1/8');
+
+            function configureBranchCards(branchCards, branchNum) {
+                for (var idx = 0; idx < branchCards.length; idx++) {
+                    var card = branchCards[idx];
+                    var isActive = idx < half;
+                    card.style.display = isActive ? '' : 'none';
+                    card.querySelectorAll('input, select').forEach(function (el) {
+                        el.disabled = !isActive;
+                    });
+
+                    if (isActive) {
+                        var seqIndex = (branchNum === 1 ? idx : (half + idx));
+                        var matchNum = seqIndex + 1;
+                        card.querySelector('.pair-title').textContent = roundLabel + ' ' + matchNum;
+                        var orderInput = card.querySelector('.pair-order-input');
+                        var branchInput = card.querySelector('.pair-branch-input');
+                        orderInput.name = 'Pairs[' + seqIndex + '].BracketOrder';
+                        orderInput.value = matchNum;
+                        branchInput.name = 'Pairs[' + seqIndex + '].BranchName';
+                        branchInput.value = 'Nhánh ' + branchNum;
+
+                        var selects = card.querySelectorAll('select');
+                        var inputs = card.querySelectorAll('input[type="datetime-local"]');
+                        // HomeTeamId, AwayTeamId, PitchName, RefereeId
+                        selects[0].name = 'Pairs[' + seqIndex + '].HomeTeamId';
+                        selects[1].name = 'Pairs[' + seqIndex + '].AwayTeamId';
+                        inputs[0].name = 'Pairs[' + seqIndex + '].MatchDateTime';
+                        selects[2].name = 'Pairs[' + seqIndex + '].PitchName';
+                        selects[3].name = 'Pairs[' + seqIndex + '].RefereeId';
+                    }
+                }
+            }
+
+            configureBranchCards(branch1Cards, 1);
+            configureBranchCards(branch2Cards, 2);
+
+            var sfBox = document.getElementById('sfDefaultScheduleBox');
+            if (sfBox) {
+                sfBox.style.display = pairCount === 2 ? 'none' : '';
+            }
+
+            checkDuplicateTeams();
+        }
+
+        function toggleThirdPlaceConfig() {
+            var chk = document.getElementById('koHasThirdPlace');
+            var box = document.getElementById('thirdPlaceScheduleBox');
+            if (chk && box) {
+                box.style.opacity = chk.checked ? '1' : '0.45';
+            }
+        }
+
+        function clearTeamSelections() {
+            document.querySelectorAll('.ko-team-select').forEach(function (sel) {
+                sel.value = '';
+            });
+            checkDuplicateTeams();
+        }
+
+        function fillSuggestedPairs() {
+            if (!suggestedPairs || suggestedPairs.length === 0) return;
+
+            var countSelect = document.getElementById('startPairsCountSelect');
+            if (countSelect && (suggestedPairs.length === 2 || suggestedPairs.length === 4 || suggestedPairs.length === 8)) {
+                // Giữ đúng lựa chọn hiện tại nếu đang chọn Tứ Kết / Bán Kết hợp lệ
+                var currentPairs = parseInt(countSelect.value, 10);
+                if (suggestedPairs.length !== currentPairs) {
+                    // Nếu số gợi ý khác số hiện tại, vẫn điền tối đa có thể hoặc khớp option
+                    for (var o = 0; o < countSelect.options.length; o++) {
+                        if (parseInt(countSelect.options[o].value, 10) === suggestedPairs.length) {
+                            countSelect.value = suggestedPairs.length.toString();
+                            switchKnockoutSize();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            var activeCards = Array.from(document.querySelectorAll('.ko-pair-card')).filter(function (c) {
+                return c.style.display !== 'none';
+            });
+
+            // Sắp xếp theo BracketOrder đang gán
+            activeCards.sort(function (a, b) {
+                return parseInt(a.querySelector('.pair-order-input').value, 10) - parseInt(b.querySelector('.pair-order-input').value, 10);
+            });
+
+            for (var i = 0; i < activeCards.length && i < suggestedPairs.length; i++) {
+                var p = suggestedPairs[i];
+                var selects = activeCards[i].querySelectorAll('.ko-team-select');
+                selects[0].value = p.homeTeamId ? p.homeTeamId.toString() : '';
+                selects[1].value = p.awayTeamId ? p.awayTeamId.toString() : '';
+            }
+
+            checkDuplicateTeams();
+        }
+
+        function checkDuplicateTeams() {
+            var seen = {};
+            var hasError = false;
+            var msg = '';
+
+            var activeCards = Array.from(document.querySelectorAll('.ko-pair-card')).filter(function (c) {
+                return c.style.display !== 'none';
+            });
+
+            activeCards.forEach(function (card) {
+                var selects = card.querySelectorAll('.ko-team-select');
+                var h = selects[0].value;
+                var a = selects[1].value;
+
+                selects[0].classList.remove('is-invalid');
+                selects[1].classList.remove('is-invalid');
+
+                if (h && a && h === a) {
+                    hasError = true;
+                    msg = 'Đội chủ nhà và Đội khách trong cùng một cặp đấu không được giống nhau.';
+                    selects[0].classList.add('is-invalid');
+                    selects[1].classList.add('is-invalid');
+                }
+
+                [selects[0], selects[1]].forEach(function (sel) {
+                    var val = sel.value;
+                    if (!val) return;
+                    if (seen[val]) {
+                        hasError = true;
+                        msg = 'Có đội bóng đang được chọn ở nhiều hơn một cặp đấu trong cùng vòng Knockout.';
+                        sel.classList.add('is-invalid');
+                        seen[val].classList.add('is-invalid');
+                    } else {
+                        seen[val] = sel;
+                    }
+                });
+            });
+
+            var warning = document.getElementById('duplicateTeamWarning');
+            var warningText = document.getElementById('duplicateTeamWarningText');
+            if (warning && warningText) {
+                if (hasError) {
+                    warningText.textContent = msg;
+                    warning.classList.remove('d-none');
+                } else {
+                    warning.classList.add('d-none');
+                }
+            }
+            return !hasError;
+        }
+
+        function validateKnockoutForm() {
+            if (!checkDuplicateTeams()) {
+                return false;
+            }
+            return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            switchKnockoutSize();
+            toggleThirdPlaceConfig();
+        });
+    </script>
+}

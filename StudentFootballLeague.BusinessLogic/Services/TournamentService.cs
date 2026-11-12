@@ -45,8 +45,12 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 }
 
                 tournament.Status = "Cancelled";
+                foreach (var match in tournament.Matches.Where(m => m.Status == "Scheduled" || m.Status == "Postponed"))
+                {
+                    match.Status = "Cancelled";
+                }
                 await _context.SaveChangesAsync();
-                return (true, 200, "Giải đấu đã phát sinh hồ sơ đăng ký hoặc lịch thi đấu nên đã được chuyển sang trạng thái 'Cancelled' (Xóa mềm).");
+                return (true, 200, "Giải đấu đã phát sinh hồ sơ đăng ký hoặc lịch thi đấu nên đã được chuyển sang trạng thái 'Cancelled' (Xóa mềm). Các trận chưa đá đã được tự động hủy.");
             }
 
             // Nếu giải hoàn toàn chưa có dữ liệu liên quan -> Xóa cứng an toàn

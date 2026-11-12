@@ -52,7 +52,15 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.Property(t => t.Name).HasMaxLength(150).IsRequired();
                 entity.HasIndex(t => t.Name).IsUnique();
                 entity.Property(t => t.Season).HasMaxLength(20).IsRequired();
+                entity.Property(t => t.GroupCount).HasDefaultValue(2).IsRequired();
+                entity.Property(t => t.KnockoutTeamCount).HasDefaultValue(4).IsRequired();
+                entity.Property(t => t.HasThirdPlaceMatch).HasDefaultValue(true).IsRequired();
                 entity.Property(t => t.Status).HasMaxLength(30).HasDefaultValue("Registering").IsRequired();
+
+                entity.HasOne(t => t.ChampionTeam)
+                    .WithMany()
+                    .HasForeignKey(t => t.ChampionTeamId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // =========================================================
@@ -133,6 +141,12 @@ namespace StudentFootballLeague.DataAccess.Data
                 entity.HasKey(m => m.MatchId);
                 entity.Property(m => m.GroupName).HasMaxLength(20);
                 entity.Property(m => m.RoundName).HasMaxLength(50).IsRequired();
+                entity.Property(m => m.Stage).HasMaxLength(20).HasDefaultValue("Group").IsRequired();
+                entity.Property(m => m.BranchName).HasMaxLength(30);
+                entity.Property(m => m.HomeSourceLabel).HasMaxLength(60);
+                entity.Property(m => m.AwaySourceLabel).HasMaxLength(60);
+                entity.Property(m => m.NextMatchSlot).HasMaxLength(10);
+                entity.Property(m => m.LoserNextMatchSlot).HasMaxLength(10);
                 entity.Property(m => m.PitchName).HasMaxLength(100).IsRequired();
                 entity.Property(m => m.Status).HasMaxLength(20).HasDefaultValue("Scheduled").IsRequired();
 
@@ -147,6 +161,21 @@ namespace StudentFootballLeague.DataAccess.Data
                     .HasForeignKey(m => m.AwayTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                entity.HasOne(m => m.WinnerTeam)
+                    .WithMany()
+                    .HasForeignKey(m => m.WinnerTeamId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(m => m.NextMatch)
+                    .WithMany()
+                    .HasForeignKey(m => m.NextMatchId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(m => m.LoserNextMatch)
+                    .WithMany()
+                    .HasForeignKey(m => m.LoserNextMatchId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
                 entity.HasOne(m => m.Tournament)
                     .WithMany(t => t.Matches)
                     .HasForeignKey(m => m.TournamentId)
@@ -157,8 +186,8 @@ namespace StudentFootballLeague.DataAccess.Data
                     .HasForeignKey(m => m.RefereeId)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Check constraint: Đội nhà và khách phải khác nhau
-                entity.ToTable(tb => tb.HasCheckConstraint("CK_Matches_DifferentTeams", "[HomeTeamId] <> [AwayTeamId]"));
+                // Check constraint: Đội nhà và khách phải khác nhau (khi đã xác định cả 2 đội)
+                entity.ToTable(tb => tb.HasCheckConstraint("CK_Matches_DifferentTeams", "([HomeTeamId] IS NULL OR [AwayTeamId] IS NULL OR [HomeTeamId] <> [AwayTeamId])"));
             });
 
             // =========================================================

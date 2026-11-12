@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -84,19 +85,110 @@ namespace StudentFootballLeague.WebClient.Controllers
         }
 
         // =========================================================
-        // 2. Phân hệ Lập lịch & Cập nhật Kết quả (Admin, Referee)
+        // 2. Phân hệ Thiết lập & Sắp xếp Vòng Knockout (Admin only)
+        // =========================================================
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Knockout(int? tournamentId)
+        {
+            var tournaments = await _apiClient.GetAsync<List<TournamentReadDto>>("api/tournaments") ?? new List<TournamentReadDto>();
+            var selectedTour = tournamentId.HasValue
+                ? tournaments.FirstOrDefault(t => t.TournamentId == tournamentId.Value)
+                : (tournaments.FirstOrDefault(t => t.Status == "Ongoing") ?? tournaments.FirstOrDefault());
+
+            KnockoutSetupReadDto? setup = null;
+            KnockoutBracketReadDto? bracket = null;
+            var referees = await _apiClient.GetAsync<List<RefereeOptionDto>>("api/matches/referees") ?? new List<RefereeOptionDto>();
+
+            if (selectedTour != null)
+            {
+                setup = await _apiClient.GetAsync<KnockoutSetupReadDto>($"api/tournaments/{selectedTour.TournamentId}/knockout/setup");
+                bracket = await _apiClient.GetAsync<KnockoutBracketReadDto>($"api/tournaments/{selectedTour.TournamentId}/knockout/bracket");
+            }
+
+            ViewBag.Tournaments = tournaments;
+            ViewBag.SelectedTournament = selectedTour;
+            ViewBag.KnockoutSetup = setup;
+            ViewBag.KnockoutBracket = bracket;
+            ViewBag.Referees = referees;
+
+            return View();
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GenerateKnockout(int tournamentId, GenerateKnockoutBracketDto dto)
+        {
+            var result = await _apiClient.PostAsync<GenerateKnockoutBracketDto, KnockoutBracketReadDto>($"api/tournaments/{tournamentId}/knockout/generate", dto);
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] = result.ErrorMessage ?? "Không thể thiết lập nhánh đấu Knockout.";
+            }
+            else
+            {
+                TempData["Success"] = "Đã thiết lập thành công toàn bộ cây đấu Knockout (Tứ kết → Bán kết → Chung kết)!";
+            }
+
+            return RedirectToAction(nameof(Knockout), new { tournamentId });
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetKnockout(int tournamentId)
+        {
+            var result = await _apiClient.DeleteAsync($"api/tournaments/{tournamentId}/knockout");
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] = result.ErrorMessage ?? "Không thể xóa nhánh đấu Knockout.";
+            }
+            else
+            {
+                TempData["Success"] = "Đã xóa nhánh đấu Knockout cũ. Bạn có thể điền và sắp xếp lại cặp đấu mới.";
+            }
+
+            return RedirectToAction(nameof(Knockout), new { tournamentId });
+        }
+
+        // =========================================================
+        // 3. Phân hệ Lập lịch & Cập nhật Kết quả (Admin, Referee)
         // =========================================================
         public async Task<IActionResult> Matches()
         {
             var tournaments = await _apiClient.GetAsync<List<TournamentReadDto>>("api/tournaments") ?? new List<TournamentReadDto>();
             var matches = await _apiClient.GetAsync<List<MatchReadDto>>("api/matches") ?? new List<MatchReadDto>();
             var registrations = await _apiClient.GetAsync<List<TeamRegistrationReadDto>>("api/registrations") ?? new List<TeamRegistrationReadDto>();
+            var referees = User.IsInRole("Admin")
+                ? (await _apiClient.GetAsync<List<RefereeOptionDto>>("api/matches/referees") ?? new List<RefereeOptionDto>())
+                : new List<RefereeOptionDto>();
 
             ViewBag.Tournaments = tournaments;
             ViewBag.Matches = matches;
             ViewBag.ApprovedTeams = registrations.FindAll(r => r.ApprovalStatus == "Approved");
+            ViewBag.Referees = referees;
 
             return View();
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateMatchSchedule(int matchId, MatchScheduleUpdateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Dữ liệu lịch thi đấu không hợp lệ.";
+                return RedirectToAction(nameof(Matches));
+            }
+
+            var result = await _apiClient.PutAsync($"api/matches/{matchId}/schedule", dto);
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] = result.ErrorMessage ?? "Cập nhật lịch thi đấu thất bại.";
+            }
+            else
+            {
+                TempData["Success"] = $"Đã cập nhật giờ/sân thi đấu cho trận #{matchId}!";
+            }
+
+            return RedirectToAction(nameof(Matches));
         }
 
         [HttpPost]
@@ -123,14 +215,26 @@ namespace StudentFootballLeague.WebClient.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateResult(int matchId, int homeScore, int awayScore, string status)
+        public async Task<IActionResult> UpdateResult(int matchId, int homeScore, int awayScore, int? homePenalty, int? awayPenalty, string status)
         {
+            var existingMatch = await _apiClient.GetAsync<MatchReadDto>($"api/matches/{matchId}");
+            var preservedEvents = existingMatch?.Events.ConvertAll(e => new MatchEventInputDto
+            {
+                TeamId = e.TeamId,
+                PlayerId = e.PlayerId,
+                EventType = e.EventType,
+                Minute = e.Minute,
+                Description = e.Description
+            }) ?? new List<MatchEventInputDto>();
+
             var dto = new MatchResultUpdateDto
             {
                 HomeScore = homeScore,
                 AwayScore = awayScore,
+                HomePenalty = homePenalty,
+                AwayPenalty = awayPenalty,
                 Status = status,
-                Events = new List<MatchEventInputDto>()
+                Events = preservedEvents
             };
 
             var result = await _apiClient.PutAsync($"api/matches/{matchId}/result", dto);
@@ -140,7 +244,10 @@ namespace StudentFootballLeague.WebClient.Controllers
             }
             else
             {
-                TempData["Success"] = "Cập nhật tỷ số trận đấu thành công! Bảng xếp hạng đã được tự động tính toán lại.";
+                var isKnockout = existingMatch != null && (existingMatch.Stage == "Knockout" || string.IsNullOrEmpty(existingMatch.GroupName));
+                TempData["Success"] = isKnockout && status == "Completed"
+                    ? "Cập nhật kết quả Knockout thành công! Đội thắng đã được tự động đẩy vào vòng tiếp theo."
+                    : "Cập nhật tỷ số trận đấu thành công! Bảng xếp hạng đã được tự động tính toán lại.";
             }
 
             return RedirectToAction(nameof(Matches));
@@ -160,6 +267,8 @@ namespace StudentFootballLeague.WebClient.Controllers
             {
                 HomeScore = match.HomeScore ?? 0,
                 AwayScore = match.AwayScore ?? 0,
+                HomePenalty = match.HomePenalty,
+                AwayPenalty = match.AwayPenalty,
                 Status = match.Status,
                 Events = match.Events.ConvertAll(e => new MatchEventInputDto
                 {
@@ -215,5 +324,12 @@ namespace StudentFootballLeague.WebClient.Controllers
 
             return RedirectToAction(nameof(Matches));
         }
+    }
+
+    public class RefereeOptionDto
+    {
+        public int UserId { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 }

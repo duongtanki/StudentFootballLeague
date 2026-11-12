@@ -216,6 +216,10 @@
                             {
                                 <span class="apex-badge apex-badge--scheduled">@FormatGroupName(m.GroupName)</span>
                             }
+                            else
+                            {
+                                <span class="apex-badge apex-badge--live">@m.RoundName @(!string.IsNullOrEmpty(m.BranchName) && m.BranchName != m.RoundName ? $"• {m.BranchName}" : "")</span>
+                            }
                         </div>
 
                         <!-- Matchup & Score -->
@@ -235,6 +239,10 @@
                                         <div class="apex-score @(isLive ? "apex-score--live" : "")" style="font-size: 2rem;">
                                             @m.HomeScore - @m.AwayScore
                                         </div>
+                                        @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
+                                        {
+                                            <small class="d-block apex-tabular" style="color: var(--apex-violet-soft);">Pen @m.HomePenalty - @m.AwayPenalty</small>
+                                        }
                                     }
                                     else
                                     {
