@@ -46,6 +46,7 @@ namespace StudentFootballLeague.API.Controllers
             var query = _context.Matches
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                .Include(m => m.WinnerTeam)
                 .Include(m => m.Referee)
                 .Include(m => m.Tournament)
                 .Include(m => m.Events)
@@ -76,10 +77,22 @@ namespace StudentFootballLeague.API.Controllers
                     TournamentName = m.Tournament != null ? m.Tournament.Name : "",
                     GroupName = m.GroupName,
                     RoundName = m.RoundName,
+                    Stage = m.Stage,
+                    KnockoutRound = m.KnockoutRound,
+                    BranchName = m.BranchName,
+                    BracketOrder = m.BracketOrder,
+                    HomeSourceLabel = m.HomeSourceLabel,
+                    AwaySourceLabel = m.AwaySourceLabel,
                     HomeTeamId = m.HomeTeamId,
-                    HomeTeamName = m.HomeTeam != null ? m.HomeTeam.TeamName : "",
+                    HomeTeamName = m.HomeTeam != null ? m.HomeTeam.TeamName : (m.HomeSourceLabel ?? "Chờ xác định"),
                     AwayTeamId = m.AwayTeamId,
-                    AwayTeamName = m.AwayTeam != null ? m.AwayTeam.TeamName : "",
+                    AwayTeamName = m.AwayTeam != null ? m.AwayTeam.TeamName : (m.AwaySourceLabel ?? "Chờ xác định"),
+                    WinnerTeamId = m.WinnerTeamId,
+                    WinnerTeamName = m.WinnerTeam != null ? m.WinnerTeam.TeamName : null,
+                    NextMatchId = m.NextMatchId,
+                    NextMatchSlot = m.NextMatchSlot,
+                    LoserNextMatchId = m.LoserNextMatchId,
+                    LoserNextMatchSlot = m.LoserNextMatchSlot,
                     MatchDateTime = m.MatchDateTime,
                     PitchName = m.PitchName,
                     RefereeId = m.RefereeId,
@@ -114,6 +127,7 @@ namespace StudentFootballLeague.API.Controllers
             var m = await _context.Matches
                 .Include(m => m.HomeTeam)
                 .Include(m => m.AwayTeam)
+                .Include(m => m.WinnerTeam)
                 .Include(m => m.Referee)
                 .Include(m => m.Tournament)
                 .Include(m => m.Events)
@@ -132,10 +146,22 @@ namespace StudentFootballLeague.API.Controllers
                 TournamentName = m.Tournament?.Name ?? "",
                 GroupName = m.GroupName,
                 RoundName = m.RoundName,
+                Stage = m.Stage,
+                KnockoutRound = m.KnockoutRound,
+                BranchName = m.BranchName,
+                BracketOrder = m.BracketOrder,
+                HomeSourceLabel = m.HomeSourceLabel,
+                AwaySourceLabel = m.AwaySourceLabel,
                 HomeTeamId = m.HomeTeamId,
-                HomeTeamName = m.HomeTeam?.TeamName ?? "",
+                HomeTeamName = m.HomeTeam?.TeamName ?? m.HomeSourceLabel ?? "Chờ xác định",
                 AwayTeamId = m.AwayTeamId,
-                AwayTeamName = m.AwayTeam?.TeamName ?? "",
+                AwayTeamName = m.AwayTeam?.TeamName ?? m.AwaySourceLabel ?? "Chờ xác định",
+                WinnerTeamId = m.WinnerTeamId,
+                WinnerTeamName = m.WinnerTeam?.TeamName,
+                NextMatchId = m.NextMatchId,
+                NextMatchSlot = m.NextMatchSlot,
+                LoserNextMatchId = m.LoserNextMatchId,
+                LoserNextMatchSlot = m.LoserNextMatchSlot,
                 MatchDateTime = m.MatchDateTime,
                 PitchName = m.PitchName,
                 RefereeId = m.RefereeId,
@@ -163,6 +189,19 @@ namespace StudentFootballLeague.API.Controllers
             return Ok(dto);
         }
 
+        [HttpGet("api/matches/referees")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetReferees()
+        {
+            var referees = await _context.Users
+                .Where(u => u.Role == "Referee" && u.IsActive)
+                .OrderBy(u => u.FullName)
+                .Select(u => new { u.UserId, u.FullName, u.Email })
+                .ToListAsync();
+
+            return Ok(referees);
+        }
+
         [HttpPost("api/matches")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ScheduleMatch([FromBody] MatchScheduleDto dto)
@@ -179,6 +218,24 @@ namespace StudentFootballLeague.API.Controllers
             }
 
             return CreatedAtAction(nameof(GetById), new { id = result.Match?.MatchId }, result.Match);
+        }
+
+        [HttpPut("api/matches/{id}/schedule")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateSchedule(int id, [FromBody] MatchScheduleUpdateDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _matchService.UpdateMatchScheduleAsync(id, dto);
+            if (!result.IsSuccess)
+            {
+                return BadRequest(new { message = result.ErrorMessage });
+            }
+
+            return Ok(new { message = "Cập nhật lịch thi đấu thành công." });
         }
 
         [HttpPut("api/matches/{id}/result")]
@@ -234,10 +291,13 @@ namespace StudentFootballLeague.API.Controllers
             _context.MatchEvents.Remove(ev);
             await _context.SaveChangesAsync();
 
-            // Tự động tính lại Bảng xếp hạng
-            await _standingsService.RecalculateStandingsAsync(match.TournamentId, match.GroupName);
+            // Chỉ tự động tính lại Bảng xếp hạng đối với trận vòng bảng
+            if (match.Stage == "Group")
+            {
+                await _standingsService.RecalculateStandingsAsync(match.TournamentId, match.GroupName);
+            }
 
-            return Ok(new { message = "Đã xóa sự kiện thành công. Tỷ số và Bảng xếp hạng đã được cập nhật lại." });
+            return Ok(new { message = "Đã xóa sự kiện thành công. Tỷ số và thống kê đã được cập nhật lại." });
         }
     }
 }

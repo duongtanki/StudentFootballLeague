@@ -64,8 +64,10 @@
                     <th>Thời gian thi đấu</th>
                     <th>Hạn đăng ký</th>
                     <th>Quy mô đội</th>
+                    <th>Thể thức Knockout</th>
                     <th>Cầu thủ/Đội</th>
                     <th>Trạng thái</th>
+                    <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -73,11 +75,23 @@
                 {
                     <tr class="text-center">
                         <td><span class="badge bg-dark border">#@t.TournamentId</span></td>
-                        <td class="text-start fw-bold text-white">@t.Name</td>
+                        <td class="text-start fw-bold text-white">
+                            @t.Name
+                            @if (!string.IsNullOrEmpty(t.ChampionTeamName))
+                            {
+                                <div class="small" style="color: #fde68a;"><i class="bi bi-trophy-fill me-1"></i>Vô địch: @t.ChampionTeamName</div>
+                            }
+                        </td>
                         <td><span class="apex-badge apex-badge--scheduled">@t.Season</span></td>
                         <td>@t.StartDate.ToString("dd/MM/yyyy") – @t.EndDate.ToString("dd/MM/yyyy")</td>
                         <td>@t.RegistrationDeadline.ToString("dd/MM/yyyy HH:mm")</td>
                         <td>@t.RegisteredTeamsCount / @t.MaxTeams đội</td>
+                        <td>
+                            <div class="small text-white">@t.GroupCount bảng</div>
+                            <small class="text-muted">
+                                @(t.KnockoutTeamCount > 0 ? $"KO Top {t.KnockoutTeamCount}" : "Chỉ vòng bảng")
+                            </small>
+                        </td>
                         <td>@t.MinPlayersPerTeam – @t.MaxPlayersPerTeam</td>
                         <td>
                             @if (t.Status == "Ongoing")
@@ -95,6 +109,15 @@
                             else
                             {
                                 <span class="apex-badge apex-badge--completed">@t.Status</span>
+                            }
+                        </td>
+                        <td>
+                            @if (t.KnockoutTeamCount > 0 && t.Status != "Cancelled")
+                            {
+                                <a asp-action="Knockout" asp-route-tournamentId="@t.TournamentId"
+                                   class="btn btn-sm @(t.HasKnockoutBracket ? "btn-apex-mint" : "btn-apex-primary") px-2">
+                                    <i class="bi bi-diagram-3 me-1"></i>@(t.HasKnockoutBracket ? "Xem nhánh KO" : "Thiết lập KO")
+                                </a>
                             }
                         </td>
                     </tr>
@@ -168,9 +191,16 @@
                                 {
                                     <form asp-action="ApproveRegistration" method="post" class="d-inline-flex gap-2 align-items-center">
                                         <input type="hidden" name="id" value="@reg.RegistrationId" />
-                                        <select name="groupName" class="form-select form-select-sm" style="width: 110px;">
-                                            <option value="Group A">Bảng A</option>
-                                            <option value="Group B">Bảng B</option>
+                                        <select name="groupName" class="form-select form-select-sm" style="width: 115px;">
+                                            @{
+                                                var tourGroupCount = tournaments.FirstOrDefault(x => x.TournamentId == reg.TournamentId)?.GroupCount ?? 2;
+                                                for (int gIdx = 0; gIdx < tourGroupCount; gIdx++)
+                                                {
+                                                    var gLetter = (char)('A' + gIdx);
+                                                    var gValue = $"Group {gLetter}";
+                                                    <option value="@gValue">Bảng @gLetter</option>
+                                                }
+                                            }
                                         </select>
                                         <button type="submit" name="status" value="Approved" class="btn btn-apex-mint btn-sm px-3">
                                             <i class="bi bi-check-lg me-1"></i>Duyệt
@@ -217,17 +247,47 @@
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small apex-label-caps">Kỳ / Năm học <span class="text-danger">*</span></label>
                             <input name="Season" class="form-control" placeholder="Ví dụ: Spring 2027" required />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label small apex-label-caps">Số đội tối đa <span class="text-danger">*</span></label>
-                            <select name="MaxTeams" class="form-select" required>
-                                <option value="8" selected>8 đội (2 bảng)</option>
-                                <option value="12">12 đội (3 bảng)</option>
-                                <option value="16">16 đội (4 bảng)</option>
+                            <select name="MaxTeams" id="createMaxTeams" class="form-select" required onchange="syncTournamentFormatDefaults()">
+                                <option value="8" selected>8 đội</option>
+                                <option value="12">12 đội</option>
+                                <option value="16">16 đội</option>
+                                <option value="24">24 đội</option>
+                                <option value="32">32 đội</option>
                             </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small apex-label-caps">Số bảng đấu</label>
+                            <select name="GroupCount" id="createGroupCount" class="form-select">
+                                <option value="2" selected>2 bảng (A, B)</option>
+                                <option value="3">3 bảng (A, B, C)</option>
+                                <option value="4">4 bảng (A–D)</option>
+                                <option value="6">6 bảng (A–F)</option>
+                                <option value="8">8 bảng (A–H)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small apex-label-caps">Vòng Knockout khởi đầu</label>
+                            <select name="KnockoutTeamCount" id="createKnockoutTeamCount" class="form-select">
+                                <option value="8" selected>8 đội — Tứ Kết (chia 2 nhánh)</option>
+                                <option value="4">4 đội — Bán Kết</option>
+                                <option value="16">16 đội — Vòng 1/8</option>
+                                <option value="0">Không có (Chỉ đá vòng bảng)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="HasThirdPlaceMatch" id="hasThirdPlace" value="true" checked />
+                                <label class="form-check-label text-white small" for="hasThirdPlace">Tổ chức trận Tranh Hạng Ba</label>
+                            </div>
                         </div>
                     </div>
 
@@ -282,6 +342,17 @@
             });
             btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
+        }
+
+        function syncTournamentFormatDefaults() {
+            var maxTeams = parseInt(document.getElementById('createMaxTeams').value || '8', 10);
+            var groupSel = document.getElementById('createGroupCount');
+            var koSel = document.getElementById('createKnockoutTeamCount');
+            if (maxTeams === 8) { groupSel.value = '2'; koSel.value = '8'; }
+            else if (maxTeams === 12) { groupSel.value = '3'; koSel.value = '8'; }
+            else if (maxTeams === 16) { groupSel.value = '4'; koSel.value = '8'; }
+            else if (maxTeams === 24) { groupSel.value = '6'; koSel.value = '16'; }
+            else if (maxTeams === 32) { groupSel.value = '8'; koSel.value = '16'; }
         }
     </script>
 }

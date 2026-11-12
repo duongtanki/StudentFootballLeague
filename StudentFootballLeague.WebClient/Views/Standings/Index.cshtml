@@ -2,11 +2,12 @@
     ViewData["Title"] = "Bảng xếp hạng & Thống kê";
     var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
     var selectedTour = ViewBag.SelectedTournament as StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto;
-    var groupA = ViewBag.GroupA as List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>();
-    var groupB = ViewBag.GroupB as List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.StandingReadDto>();
+    var groupStandings = ViewBag.GroupStandings as List<StudentFootballLeague.BusinessLogic.DTOs.GroupStandingsBlockDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.GroupStandingsBlockDto>();
     var topScorers = ViewBag.TopScorers as List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TopScorerDto>();
+    var knockoutBracket = ViewBag.KnockoutBracket as StudentFootballLeague.BusinessLogic.DTOs.KnockoutBracketReadDto;
 
-    var bestFairPlay = groupA.Concat(groupB).OrderByDescending(t => t.FairPlayPoints).ThenByDescending(t => t.Points).FirstOrDefault();
+    var allTeamsInStandings = groupStandings.SelectMany(g => g.Standings).ToList();
+    var bestFairPlay = allTeamsInStandings.OrderByDescending(t => t.FairPlayPoints).ThenByDescending(t => t.Points).FirstOrDefault();
     var totalYellow = topScorers.Sum(s => s.YellowCards);
     var totalRed = topScorers.Sum(s => s.RedCards);
 }
@@ -31,34 +32,58 @@
     </form>
 </div>
 
-<!-- Group Switcher Tabs + Standings Table -->
+<!-- Group Switcher Tabs + Standings Table + Knockout Bracket Tab -->
 <div class="mb-5">
     <ul class="nav nav-pills gap-2 mb-3" id="groupTab" role="tablist">
+        @for (int i = 0; i < groupStandings.Count; i++)
+        {
+            var g = groupStandings[i];
+            var slug = g.GroupName.Replace(" ", "-").ToLowerInvariant();
+            var label = g.GroupName.StartsWith("Group ", StringComparison.OrdinalIgnoreCase)
+                ? $"Bảng {g.GroupName.Substring(6)} ({g.GroupName})"
+                : g.GroupName;
+            <li class="nav-item" role="presentation">
+                <button class="apex-tab-btn @(i == 0 ? "active" : "")" id="tab-@slug" data-bs-toggle="pill" data-bs-target="#pane-@slug" type="button" role="tab">
+                    @label
+                </button>
+            </li>
+        }
         <li class="nav-item" role="presentation">
-            <button class="apex-tab-btn active" id="tab-group-a" data-bs-toggle="pill" data-bs-target="#pane-group-a" type="button" role="tab">
-                Bảng A (Group A)
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="apex-tab-btn" id="tab-group-b" data-bs-toggle="pill" data-bs-target="#pane-group-b" type="button" role="tab">
-                Bảng B (Group B)
+            <button class="apex-tab-btn" id="tab-knockout-bracket" data-bs-toggle="pill" data-bs-target="#pane-knockout-bracket" type="button" role="tab" style="border-color: rgba(233, 0, 82, 0.45);">
+                <i class="bi bi-diagram-3 me-1"></i>Sơ đồ Vòng Knockout
             </button>
         </li>
     </ul>
 
     <div class="tab-content">
-        <div class="tab-pane fade show active" id="pane-group-a" role="tabpanel">
-            <div class="apex-panel p-3">
-                @await Html.PartialAsync("_StandingsTablePartial", groupA)
+        @for (int i = 0; i < groupStandings.Count; i++)
+        {
+            var g = groupStandings[i];
+            var slug = g.GroupName.Replace(" ", "-").ToLowerInvariant();
+            <div class="tab-pane fade @(i == 0 ? "show active" : "")" id="pane-@slug" role="tabpanel">
+                <div class="apex-panel p-3">
+                    @await Html.PartialAsync("_StandingsTablePartial", g.Standings)
+                </div>
             </div>
-        </div>
-        <div class="tab-pane fade" id="pane-group-b" role="tabpanel">
-            <div class="apex-panel p-3">
-                @await Html.PartialAsync("_StandingsTablePartial", groupB)
-            </div>
+        }
+        <div class="tab-pane fade" id="pane-knockout-bracket" role="tabpanel">
+            @await Html.PartialAsync("_KnockoutBracketPartial", knockoutBracket)
         </div>
     </div>
 </div>
+
+@if (knockoutBracket != null && knockoutBracket.Rounds.Any())
+{
+    <div class="apex-section-bar">
+        <h2 class="apex-section-title">
+            <span class="apex-section-accent" style="background: var(--apex-mint);"></span>
+            <span>Nhánh đấu Vòng Knockout</span>
+        </h2>
+    </div>
+    <div class="mb-5">
+        @await Html.PartialAsync("_KnockoutBracketPartial", knockoutBracket)
+    </div>
+}
 
 <!-- Top Scorers & Fair-Play Telemetry -->
 <div class="apex-section-bar">

@@ -96,9 +96,13 @@ namespace StudentFootballLeague.WebClient.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Lấy danh sách cầu thủ 2 đội
-            var homePlayers = await _apiClient.GetAsync<List<PlayerReadDto>>($"api/teams/{match.HomeTeamId}/players") ?? new List<PlayerReadDto>();
-            var awayPlayers = await _apiClient.GetAsync<List<PlayerReadDto>>($"api/teams/{match.AwayTeamId}/players") ?? new List<PlayerReadDto>();
+            // Lấy danh sách cầu thủ 2 đội (nếu đã xác định đội)
+            var homePlayers = match.HomeTeamId.HasValue
+                ? (await _apiClient.GetAsync<List<PlayerReadDto>>($"api/teams/{match.HomeTeamId.Value}/players") ?? new List<PlayerReadDto>())
+                : new List<PlayerReadDto>();
+            var awayPlayers = match.AwayTeamId.HasValue
+                ? (await _apiClient.GetAsync<List<PlayerReadDto>>($"api/teams/{match.AwayTeamId.Value}/players") ?? new List<PlayerReadDto>())
+                : new List<PlayerReadDto>();
 
             ViewBag.HomePlayers = homePlayers;
             ViewBag.AwayPlayers = awayPlayers;

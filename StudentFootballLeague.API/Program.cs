@@ -27,6 +27,7 @@ builder.Services.AddScoped<ITokenService>(sp =>
 });
 
 builder.Services.AddScoped<IStandingsService, StandingsService>();
+builder.Services.AddScoped<IKnockoutService, KnockoutService>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<IPlayerService, PlayerService>();
 builder.Services.AddScoped<ITournamentService, TournamentService>();

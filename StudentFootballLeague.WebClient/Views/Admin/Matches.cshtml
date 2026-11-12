@@ -3,6 +3,7 @@
     var tournaments = ViewBag.Tournaments as List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TournamentReadDto>();
     var matches = ViewBag.Matches as List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.MatchReadDto>();
     var approvedTeams = ViewBag.ApprovedTeams as List<StudentFootballLeague.BusinessLogic.DTOs.TeamRegistrationReadDto> ?? new List<StudentFootballLeague.BusinessLogic.DTOs.TeamRegistrationReadDto>();
+    var referees = ViewBag.Referees as List<StudentFootballLeague.WebClient.Controllers.RefereeOptionDto> ?? new List<StudentFootballLeague.WebClient.Controllers.RefereeOptionDto>();
     var liveMatchesCount = matches.Count(m => m.Status == "InProgress");
     var scheduledMatchesCount = matches.Count(m => m.Status == "Scheduled");
     var completedMatchesCount = matches.Count(m => m.Status == "Completed");
@@ -62,15 +63,24 @@
                     foreach (var m in matches)
                     {
                         var isLive = m.Status == "InProgress";
+                        var isKnockout = m.Stage == "Knockout" || string.IsNullOrEmpty(m.GroupName);
+                        var hasBothTeams = m.HomeTeamId.HasValue && m.AwayTeamId.HasValue;
                         <tr class="text-center admin-match-row" data-status="@m.Status" data-teams="@($"{m.HomeTeamName} {m.AwayTeamName}".ToLower())">
                             <td><span class="badge bg-dark border">#@m.MatchId</span></td>
                             <td>
                                 <div class="fw-bold text-white">@m.RoundName</div>
-                                <small class="apex-badge apex-badge--scheduled">@(m.GroupName ?? "Vòng loại")</small>
+                                @if (!string.IsNullOrEmpty(m.GroupName))
+                                {
+                                    <small class="apex-badge apex-badge--scheduled">@m.GroupName</small>
+                                }
+                                else
+                                {
+                                    <small class="apex-badge apex-badge--live">@(string.IsNullOrEmpty(m.BranchName) ? "Knockout" : m.BranchName)</small>
+                                }
                             </td>
                             <td class="text-start">
-                                <div class="fw-bold text-white">@m.HomeTeamName</div>
-                                <div class="small text-muted">vs @m.AwayTeamName</div>
+                                <div class="fw-bold @(m.HomeTeamId.HasValue ? "text-white" : "text-muted fst-italic")">@m.HomeTeamName</div>
+                                <div class="small @(m.AwayTeamId.HasValue ? "text-muted" : "text-muted fst-italic")">vs @m.AwayTeamName</div>
                             </td>
                             <td>
                                 <div class="small fw-semibold text-white">@m.MatchDateTime.ToString("HH:mm - dd/MM/yyyy")</div>
@@ -84,6 +94,10 @@
                                 @if (m.Status == "Completed" || m.Status == "InProgress")
                                 {
                                     <span class="apex-display fw-bold fs-3 @(isLive ? "apex-score--live" : "text-white")">@m.HomeScore - @m.AwayScore</span>
+                                    @if (m.HomePenalty.HasValue && m.AwayPenalty.HasValue)
+                                    {
+                                        <div class="small apex-tabular" style="color: var(--apex-violet-soft);">Pen @m.HomePenalty - @m.AwayPenalty</div>
+                                    }
                                 }
                                 else
                                 {
@@ -93,16 +107,74 @@
                             <td><match-status status="@m.Status"></match-status></td>
                             <td>
                                 <div class="d-flex justify-content-center gap-1 flex-wrap">
-                                    <button type="button" class="btn btn-sm btn-apex-primary px-2" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật tỷ số">
-                                        <i class="bi bi-pencil-square me-1"></i>Tỷ số
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-apex-mint px-2" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Thêm / Xóa sự kiện">
-                                        <i class="bi bi-flag-fill me-1"></i>Sự kiện (@(m.Events?.Count ?? 0))
-                                    </button>
+                                    @if (hasBothTeams)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-apex-primary px-2" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật tỷ số">
+                                            <i class="bi bi-pencil-square me-1"></i>Tỷ số
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-apex-mint px-2" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Thêm / Xóa sự kiện">
+                                            <i class="bi bi-flag-fill me-1"></i>Sự kiện (@(m.Events?.Count ?? 0))
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-dark border text-muted py-2 px-2">Chờ đủ 2 đội</span>
+                                    }
+                                    @if (User.IsInRole("Admin") && m.Status != "Completed")
+                                    {
+                                        <button type="button" class="btn btn-sm btn-apex-violet px-2" data-bs-toggle="modal" data-bs-target="#scheduleEditModal-@m.MatchId" title="Cập nhật lịch & sân">
+                                            <i class="bi bi-clock"></i>
+                                        </button>
+                                    }
                                     <a asp-controller="Matches" asp-action="Details" asp-route-id="@m.MatchId" class="btn btn-sm btn-apex-ghost px-2" target="_blank" title="Xem chi tiết">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                 </div>
+
+                                @if (User.IsInRole("Admin") && m.Status != "Completed")
+                                {
+                                    <!-- Modal Sửa Lịch Giờ / Sân / Trọng tài -->
+                                    <div class="modal fade apex-modal" id="scheduleEditModal-@m.MatchId" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content text-start">
+                                                <form asp-action="UpdateMatchSchedule" method="post">
+                                                    <input type="hidden" name="matchId" value="@m.MatchId" />
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title apex-display fw-bold fs-4">
+                                                            <i class="bi bi-clock-history me-2" style="color: var(--apex-violet-soft);"></i>CẬP NHẬT LỊCH TRẬN #@m.MatchId
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body p-4">
+                                                        <div class="mb-3 small text-muted">@m.RoundName • @m.HomeTeamName vs @m.AwayTeamName</div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small apex-label-caps">Ngày giờ thi đấu</label>
+                                                            <input type="datetime-local" name="MatchDateTime" class="form-control" value="@m.MatchDateTime.ToString("yyyy-MM-ddTHH:mm")" required />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small apex-label-caps">Sân thi đấu</label>
+                                                            <input type="text" name="PitchName" class="form-control" value="@m.PitchName" required />
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="form-label small apex-label-caps">Trọng tài phân công</label>
+                                                            <select name="RefereeId" class="form-select">
+                                                                <option value="">-- Chưa phân công --</option>
+                                                                @foreach (var r in referees)
+                                                                {
+                                                                    <option value="@r.UserId" selected="@(m.RefereeId == r.UserId ? "selected" : null)">@r.FullName</option>
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-apex-ghost" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-apex-mint px-4">Lưu lịch đấu</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
 
                                 <!-- Modal Cập nhật Tỷ số -->
                                 <div class="modal fade apex-modal" id="scoreModal-@m.MatchId" tabindex="-1" aria-hidden="true">
@@ -125,25 +197,46 @@
                                                     <div class="row g-3 mb-3">
                                                         <div class="col-6">
                                                             <label class="form-label small apex-label-caps">Bàn thắng (@m.HomeTeamName)</label>
-                                                            <input type="number" name="homeScore" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.HomeScore ?? 0)" min="0" max="50" required />
+                                                            <input type="number" name="homeScore" id="homeScore-@m.MatchId" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.HomeScore ?? 0)" min="0" max="50" required oninput="togglePenaltyBox(@m.MatchId, @(isKnockout ? "true" : "false"))" />
                                                         </div>
                                                         <div class="col-6">
                                                             <label class="form-label small apex-label-caps">Bàn thắng (@m.AwayTeamName)</label>
-                                                            <input type="number" name="awayScore" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.AwayScore ?? 0)" min="0" max="50" required />
+                                                            <input type="number" name="awayScore" id="awayScore-@m.MatchId" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.AwayScore ?? 0)" min="0" max="50" required oninput="togglePenaltyBox(@m.MatchId, @(isKnockout ? "true" : "false"))" />
                                                         </div>
                                                     </div>
+
+                                                    @if (isKnockout)
+                                                    {
+                                                        var showPenInit = (m.HomeScore ?? 0) == (m.AwayScore ?? 0);
+                                                        <div id="penaltyBox-@m.MatchId" class="p-3 rounded-2 mb-3 @(showPenInit ? "" : "d-none")" style="background: rgba(121, 0, 226, 0.14); border: 1px solid rgba(216, 185, 255, 0.35);">
+                                                            <div class="apex-label-caps mb-2" style="color: var(--apex-violet-soft);">
+                                                                <i class="bi bi-bullseye me-1"></i>Tỷ số Luân lưu (Bắt buộc nếu hòa khi kết thúc)
+                                                            </div>
+                                                            <div class="row g-3">
+                                                                <div class="col-6">
+                                                                    <label class="form-label small text-muted">Pen (@m.HomeTeamName)</label>
+                                                                    <input type="number" name="homePenalty" class="form-control text-center fw-bold apex-tabular" value="@m.HomePenalty" min="0" max="30" />
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <label class="form-label small text-muted">Pen (@m.AwayTeamName)</label>
+                                                                    <input type="number" name="awayPenalty" class="form-control text-center fw-bold apex-tabular" value="@m.AwayPenalty" min="0" max="30" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    }
+
                                                     <div class="mb-0">
                                                         <label class="form-label small apex-label-caps">Trạng thái trận đấu</label>
                                                         <select name="status" class="form-select">
                                                             <option value="InProgress" selected="@(m.Status == "InProgress" ? "selected" : null)">Đang thi đấu (InProgress)</option>
-                                                            <option value="Completed" selected="@(m.Status == "Completed" ? "selected" : null)">Kết thúc (Completed - Tự động tính điểm BXH)</option>
+                                                            <option value="Completed" selected="@(m.Status == "Completed" ? "selected" : null)">@(isKnockout ? "Kết thúc (Completed - Đẩy đội thắng lên vòng sau)" : "Kết thúc (Completed - Tự động tính điểm BXH)")</option>
                                                             <option value="Postponed" selected="@(m.Status == "Postponed" ? "selected" : null)">Tạm hoãn (Postponed)</option>
                                                         </select>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-apex-ghost" data-bs-dismiss="modal">Hủy</button>
-                                                    <button type="submit" class="btn btn-apex-mint px-4">Lưu tỷ số &amp; Đồng bộ BXH</button>
+                                                    <button type="submit" class="btn btn-apex-mint px-4">@(isKnockout ? "Lưu kết quả Knockout" : "Lưu tỷ số & Đồng bộ BXH")</button>
                                                 </div>
                                             </form>
                                         </div>
@@ -398,6 +491,19 @@
 
 @section Scripts {
     <script>
+        function togglePenaltyBox(matchId, isKnockout) {
+            if (!isKnockout) return;
+            var box = document.getElementById('penaltyBox-' + matchId);
+            var hEl = document.getElementById('homeScore-' + matchId);
+            var aEl = document.getElementById('awayScore-' + matchId);
+            if (!box || !hEl || !aEl) return;
+            if (hEl.value !== '' && aEl.value !== '' && hEl.value === aEl.value) {
+                box.classList.remove('d-none');
+            } else {
+                box.classList.add('d-none');
+            }
+        }
+
         function filterAdminMatches(status, btn) {
             document.querySelectorAll('#adminMatchesTable .admin-match-row').forEach(function (row) {
                 row.style.display = (status === 'ALL' || row.getAttribute('data-status') === status) ? '' : 'none';

@@ -35,6 +35,13 @@ namespace StudentFootballLeague.API.Controllers
             return Ok(standings);
         }
 
+        [HttpGet("api/tournaments/{tournamentId}/groups")]
+        public async Task<IActionResult> GetGroups(int tournamentId)
+        {
+            var groups = await _standingsService.GetGroupsAsync(tournamentId);
+            return Ok(groups);
+        }
+
         [HttpGet("api/tournaments/{tournamentId}/top-scorers")]
         public async Task<IActionResult> GetTopScorers(int tournamentId, [FromQuery] int top = 10)
         {

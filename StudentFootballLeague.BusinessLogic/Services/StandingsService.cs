@@ -11,6 +11,7 @@ namespace StudentFootballLeague.BusinessLogic.Services
     {
         Task RecalculateStandingsAsync(int tournamentId, string? groupName = null);
         Task<List<StandingReadDto>> GetStandingsAsync(int tournamentId, string? groupName = null);
+        Task<List<string>> GetGroupsAsync(int tournamentId);
         Task<List<TopScorerDto>> GetTopScorersAsync(int tournamentId, int top = 10);
     }
 
@@ -48,10 +49,13 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 reg.FairPlayPoints = 0;
             }
 
-            // Load all completed matches
+            // Load all completed group-stage matches only (exclude Knockout stage)
             var matchesQuery = _context.Matches
                 .Include(m => m.Events)
-                .Where(m => m.TournamentId == tournamentId && m.Status == "Completed");
+                .Where(m => m.TournamentId == tournamentId
+                    && m.Status == "Completed"
+                    && m.Stage == "Group"
+                    && m.GroupName != null);
 
             if (!string.IsNullOrEmpty(groupName))
             {
@@ -64,10 +68,11 @@ namespace StudentFootballLeague.BusinessLogic.Services
 
             foreach (var match in matches)
             {
+                if (!match.HomeTeamId.HasValue || !match.AwayTeamId.HasValue) continue;
                 if (!match.HomeScore.HasValue || !match.AwayScore.HasValue) continue;
 
-                if (regDict.TryGetValue(match.HomeTeamId, out var homeReg) &&
-                    regDict.TryGetValue(match.AwayTeamId, out var awayReg))
+                if (regDict.TryGetValue(match.HomeTeamId.Value, out var homeReg) &&
+                    regDict.TryGetValue(match.AwayTeamId.Value, out var awayReg))
                 {
                     homeReg.MatchesPlayed++;
                     awayReg.MatchesPlayed++;
@@ -157,6 +162,16 @@ namespace StudentFootballLeague.BusinessLogic.Services
             }
 
             return list;
+        }
+
+        public async Task<List<string>> GetGroupsAsync(int tournamentId)
+        {
+            return await _context.TeamRegistrations
+                .Where(r => r.TournamentId == tournamentId && r.ApprovalStatus == "Approved" && r.GroupName != null)
+                .Select(r => r.GroupName!)
+                .Distinct()
+                .OrderBy(g => g)
+                .ToListAsync();
         }
 
         public async Task<List<TopScorerDto>> GetTopScorersAsync(int tournamentId, int top = 10)

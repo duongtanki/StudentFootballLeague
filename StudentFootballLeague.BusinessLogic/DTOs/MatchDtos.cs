@@ -39,6 +39,18 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         }
     }
 
+    public class MatchScheduleUpdateDto
+    {
+        [Required(ErrorMessage = "Thời gian thi đấu là bắt buộc")]
+        public DateTime MatchDateTime { get; set; }
+
+        [Required(ErrorMessage = "Tên sân thi đấu là bắt buộc")]
+        [StringLength(100)]
+        public string PitchName { get; set; } = string.Empty;
+
+        public int? RefereeId { get; set; }
+    }
+
     public class MatchResultUpdateDto
     {
         [Range(0, 50, ErrorMessage = "Tỷ số từ 0 đến 50")]
@@ -96,12 +108,25 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public string TournamentName { get; set; } = string.Empty;
         public string? GroupName { get; set; }
         public string RoundName { get; set; } = string.Empty;
+        public string Stage { get; set; } = "Group";
+        public int? KnockoutRound { get; set; }
+        public string? BranchName { get; set; }
+        public int? BracketOrder { get; set; }
+        public string? HomeSourceLabel { get; set; }
+        public string? AwaySourceLabel { get; set; }
 
-        public int HomeTeamId { get; set; }
+        public int? HomeTeamId { get; set; }
         public string HomeTeamName { get; set; } = string.Empty;
 
-        public int AwayTeamId { get; set; }
+        public int? AwayTeamId { get; set; }
         public string AwayTeamName { get; set; } = string.Empty;
+
+        public int? WinnerTeamId { get; set; }
+        public string? WinnerTeamName { get; set; }
+        public int? NextMatchId { get; set; }
+        public string? NextMatchSlot { get; set; }
+        public int? LoserNextMatchId { get; set; }
+        public string? LoserNextMatchSlot { get; set; }
 
         public DateTime MatchDateTime { get; set; }
         public string PitchName { get; set; } = string.Empty;
