@@ -2,7 +2,7 @@
 ## HỆ THỐNG QUẢN LÝ GIẢI BÓNG ĐÁ SINH VIÊN (STUDENT FOOTBALL LEAGUE)
 **Môn học:** PRN232 - Building Cross-Platform Back-End Application With .NET (.NET 8.0)  
 **Đề tài số 05:** Kiến trúc ASP.NET Core Web API, OData v8, JWT Bearer & ASP.NET Core MVC Client  
-**Phiên bản:** 1.0 - Ngày ban hành: 2026-11-08
+**Phiên bản:** 2.0 - Ngày cập nhật: 2026-11-12
 
 ---
 
@@ -52,6 +52,7 @@ flowchart TD
         PH6["Phân hệ 6: Bảng Xếp Hạng & Fair-Play (Standings & Stats)"]
         PH7["Phân hệ 7: Truy Vấn OData Nâng Cao (OData v8)"]
         PH8["Phân hệ 8: Giao Diện WebClient MVC (UI, Cookie & Components)"]
+        PH9["Phân hệ 9: Vòng Knockout & Delete Business Rules"]
     end
 ```
 
@@ -237,10 +238,23 @@ flowchart TD
   - Thông báo lỗi: `"Giải đấu đã hết hạn đăng ký."`
 - **Trạng thái:** **PASS**
 
-#### TC_REG_01: Admin phê duyệt hồ sơ đăng ký và phân bảng đấu (Group A / Group B)
-- **Mục tiêu:** Ban tổ chức duyệt hồ sơ hợp lệ và xếp đội vào bảng đấu.
+#### TC_TOUR_08: Xóa giải nháp (Xóa cứng) & Hủy giải đã có dữ liệu (Xóa mềm `Cancelled`)
+- **Mục tiêu:** Kiểm tra cơ chế lai khi xóa giải đấu (`DELETE /api/tournaments/{id}`) và chặn đăng ký vào giải đã hủy.
+- **Tác nhân:** Admin, TeamManager
+- **Phương thức & Endpoint:**
+  1. `DELETE /api/tournaments/{emptyId}` (Giải chưa có đăng ký/lịch đấu)
+  2. `DELETE /api/tournaments/{usedId}` (Giải đã có hồ sơ đăng ký hoặc trận đấu chưa đá)
+  3. `POST /api/tournaments/{usedId}/register` (Đăng ký vào giải đã `Cancelled`)
+- **Kết quả mong đợi:**
+  - Bước 1: `200 OK` (Xóa cứng khỏi CSDL).
+  - Bước 2: `200 OK` (Chuyển `Status = "Cancelled"`, đồng thời tự động hủy các trận `Scheduled`/`Postponed`).
+  - Bước 3: `400 Bad Request` (`"Giải đấu đã bị hủy hoặc đã kết thúc, không thể đăng ký."`).
+- **Trạng thái:** **PASS**
+
+#### TC_REG_01: Admin phê duyệt hồ sơ đăng ký hợp lệ và phân bảng đấu (Group A / Group B)
+- **Mục tiêu:** Ban tổ chức duyệt hồ sơ hợp lệ (đội có $\ge 7$ cầu thủ và $\ge 1$ GK) và xếp đội vào bảng đấu.
 - **Tác nhân:** Admin
-- **Phương thức & Endpoint:** `PUT /api/registrations/4/approval`
+- **Phương thức & Endpoint:** `PUT /api/registrations/{eligibleRegId}/approval` *(Lưu ý: Hồ sơ `RegistrationId = 4` trong DB seed hiện có 0 cầu thủ nên sẽ bị chặn `400 Bad Request` theo đúng nghiệp vụ).*
 - **Dữ liệu đầu vào:**
   ```json
   {
@@ -313,8 +327,7 @@ flowchart TD
     "fullName": "Bùi Tấn Trường SE",
     "dateOfBirth": "2004-12-10T00:00:00",
     "jerseyNumber": 25,
-    "position": "GK",
-    "avatarUrl": null
+    "position": "GK"
   }
   ```
 - **Kết quả mong đợi:**
@@ -353,6 +366,15 @@ flowchart TD
 - **Tác nhân:** Đội trưởng Đội 2 gọi API xóa cầu thủ thuộc Đội 1 (`DELETE /api/players/1`).
 - **Kết quả mong đợi:**
   - HTTP Status: `403 Forbidden`
+- **Trạng thái:** **PASS**
+
+#### TC_PLAYER_06: Xóa mềm cầu thủ (`IsActive = false`) bảo toàn lịch sử & bảo vệ đội hình tối thiểu
+- **Mục tiêu:** Kiểm tra cơ chế xóa mềm cầu thủ và tái sử dụng số áo/MSSV nhờ Filtered Unique Index (`WHERE [IsActive] = 1`).
+- **Tác nhân:** TeamManager (sở hữu đội) hoặc Admin
+- **Phương thức & Endpoint:** `DELETE /api/players/{id}`
+- **Kết quả mong đợi:**
+  - HTTP Status: `200 OK`, trường `IsActive` chuyển thành `false` (giữ nguyên dữ liệu ở `MatchEvents` và `V_PlayerStats`).
+  - Nếu đội đang tham gia giải `Approved` chưa kết thúc/chưa hủy, hệ thống chặn xóa nếu làm quân số tụt dưới `MinPlayersPerTeam` hoặc mất Thủ môn (`GK`) duy nhất (`400 Bad Request`).
 - **Trạng thái:** **PASS**
 
 ---
@@ -478,6 +500,15 @@ flowchart TD
   - Báo lỗi validation: `"Phút diễn ra sự kiện từ 1 đến 120"`.
 - **Trạng thái:** **PASS**
 
+#### TC_EVENT_04: Xóa sự kiện trận đấu (`DELETE /api/matches/{matchId}/events/{eventId}`)
+- **Mục tiêu:** Kiểm tra xóa cứng sự kiện, tự động giảm tỷ số (kể cả `OwnGoal`) và đồng bộ lại BXH / nhánh Knockout.
+- **Tác nhân:** Admin hoặc Referee
+- **Phương thức & Endpoint:** `DELETE /api/matches/1/events/{eventId}`
+- **Kết quả mong đợi:**
+  - HTTP Status: `200 OK`
+  - Bản ghi bị xóa khỏi `MatchEvents`; tỷ số trận đấu giảm tương ứng (ví dụ `2:1` $\rightarrow$ `1:1`); tự động tính lại BXH (nếu là trận `Group`) hoặc đồng bộ nhánh `Knockout`.
+- **Trạng thái:** **PASS**
+
 ---
 
 ### PHÂN HỆ 6: BẢNG XẾP HẠNG & THỐNG KÊ VUA PHÁ LƯỚI (STANDINGS & STATS)
@@ -515,7 +546,7 @@ flowchart TD
   `GET /odata/Players?$filter=TeamId eq 1 and Position eq 'FW'`
 - **Kết quả mong đợi:**
   - HTTP Status: `200 OK`
-  - Chỉ trả về các cầu thủ thuộc Đội 1 và có vị trí Tiền đạo (FW) (Tiến Linh, Tuấn Hải).
+  - Chỉ trả về các cầu thủ thuộc Đội 1 và có vị trí Tiền đạo (FW) (Tiến Linh, Tuấn Hải, Công Phượng).
 - **Trạng thái:** **PASS**
 
 #### TC_ODATA_02: Sắp xếp danh sách cầu thủ theo số áo ($orderby)
@@ -523,7 +554,7 @@ flowchart TD
 - **Phương thức & Endpoint:**  
   `GET /odata/Players?$filter=TeamId eq 1&$orderby=JerseyNumber asc`
 - **Kết quả mong đợi:**
-  - Danh sách cầu thủ trả về sắp xếp theo số áo tăng dần: #1, #3, #5, #8, #9, #19, #22.
+  - Danh sách cầu thủ trả về sắp xếp theo số áo tăng dần (7 chính thức + 5 dự bị).
 - **Trạng thái:** **PASS**
 
 #### TC_ODATA_03: Truy vấn thông tin Đội bóng kèm danh sách Cầu thủ ($expand)
@@ -532,7 +563,7 @@ flowchart TD
   `GET /odata/Teams?$expand=Players&$filter=contains(TeamName, 'AI')`
 - **Kết quả mong đợi:**
   - HTTP Status: `200 OK`
-  - Đối tượng `FC Trí Tuệ Nhân Tạo AI` chứa mảng lồng `Players` gồm đầy đủ 7 cầu thủ của đội.
+  - Đối tượng `FC Trí Tuệ Nhân Tạo AI` chứa mảng lồng `Players` gồm đầy đủ 12 cầu thủ của đội (7 chính thức + 5 dự bị).
 - **Trạng thái:** **PASS**
 
 #### TC_ODATA_04: Lọc lịch thi đấu theo Bảng đấu và mở rộng thông tin 2 đội ($expand + $filter)
@@ -578,28 +609,51 @@ flowchart TD
   - Hệ thống tự động chuyển hướng về trang `/Auth/AccessDenied` (Mã lỗi 403 - Không có quyền truy cập).
 - **Trạng thái:** **PASS**
 
-#### TC_UI_04: Hiển thị Bảng xếp hạng với PartialView `_StandingsTablePartial`
-- **Mục tiêu:** Kiểm tra hiển thị BXH và quy tắc highlight 2 đội đầu bảng.
+#### TC_UI_04: Hiển thị Bảng xếp hạng với PartialView `_StandingsTablePartial` (Apex Broadcast UI)
+- **Mục tiêu:** Kiểm tra hiển thị tab BXH động theo giải đấu, tab Nhánh đấu Knockout và quy tắc highlight 2 đội đầu bảng.
 - **Thao tác:** Truy cập `/Standings/Index`.
 - **Kết quả mong đợi:**
-  - Bảng A và Bảng B được hiển thị rõ ràng.
-  - Hàng thứ 1 và thứ 2 tự động được tô màu nền xanh lá (`table-success`) và có icon tích xanh báo hiệu đội vào vòng trong.
+  - Các tab bảng đấu có dữ liệu (ví dụ `Bảng A (Group A)`) được render động chính xác.
+  - Hàng thứ 1 và thứ 2 tự động được highlight với class `apex-qualified` báo hiệu đội vào vòng trong.
 - **Trạng thái:** **PASS**
 
 #### TC_UI_05: Kiểm tra Custom TagHelper `<match-status>`
-- **Mục tiêu:** TagHelper tự động render thẻ badge với màu sắc tương ứng trạng thái.
+- **Mục tiêu:** TagHelper tự động render thẻ badge Apex Broadcast với màu sắc tương ứng trạng thái.
 - **Kết quả kiểm tra HTML đầu ra:**
-  - `status="Scheduled"` $\rightarrow$ `<span class="badge bg-secondary text-white px-2 py-1">Sắp diễn ra</span>`
-  - `status="InProgress"` $\rightarrow$ `<span class="badge bg-danger text-white animate-pulse px-2 py-1">● Đang thi đấu</span>`
-  - `status="Completed"` $\rightarrow$ `<span class="badge bg-success text-white px-2 py-1">Đã kết thúc</span>`
+  - `status="Scheduled"` $\rightarrow$ `<span class="apex-badge apex-badge--scheduled">Sắp diễn ra</span>`
+  - `status="InProgress"` $\rightarrow$ `<span class="apex-badge apex-badge--live">...Đang thi đấu</span>`
+  - `status="Completed"` $\rightarrow$ `<span class="apex-badge apex-badge--completed">Đã kết thúc</span>`
 - **Trạng thái:** **PASS**
 
 #### TC_UI_06: Quản lý đội bóng của tôi (`/MyTeam/Dashboard`) và Modal Popup thêm cầu thủ
 - **Mục tiêu:** Đội trưởng xem danh sách đội hình, bấm nút mở Bootstrap 5 Modal `_PlayerFormModalPartial` để thêm cầu thủ.
 - **Thao tác:** Đăng nhập `captain.se@fpt.edu.vn` $\rightarrow$ Vào `/MyTeam/Dashboard` $\rightarrow$ Bấm "Thêm cầu thủ" $\rightarrow$ Nhập thông tin $\rightarrow$ Bấm Lưu.
 - **Kết quả mong đợi:**
-  - Modal popup hiển thị mượt mà.
+  - Modal popup hiển thị mượt mà (`addPlayerModal`).
   - Sau khi lưu, thông báo xanh (`TempData["Success"]`) xuất hiện, cầu thủ mới lập tức có mặt trong bảng danh sách.
+- **Trạng thái:** **PASS**
+
+#### TC_UI_07: Chi tiết trận đấu (`/Matches/Details/1`) - Diễn biến 2 bên & Đội hình 7 chính thức + 5 dự bị
+- **Mục tiêu:** Kiểm tra giao diện mới tách diễn biến trận đấu 2 bên (Chủ nhà / Đội khách) và đội hình đăng ký xếp dọc gồm 7 chính thức + 5 dự bị.
+- **Thao tác:** Truy cập `/Matches/Details/1`.
+- **Kết quả mong đợi:**
+  - HTTP Status: `200 OK`
+  - Khối diễn biến trận đấu dùng `.apex-split-timeline` tách sự kiện Chủ nhà bên trái, trục phút ở giữa, Đội khách bên phải.
+  - Cột đội hình mỗi đội hiển thị đủ `ĐỘI HÌNH CHÍNH THỨC (STARTING 7)` (`7 cầu thủ`) và `ĐỘI HÌNH DỰ BỊ (SUBSTITUTES)` (`5 dự bị`) sắp xếp theo vị trí `GK -> DF -> MF -> FW`.
+- **Trạng thái:** **PASS**
+
+---
+
+### PHÂN HỆ 9: VÒNG KNOCKOUT (KNOCKOUT BRACKET)
+
+#### TC_KO_01: Tra cứu nhánh đấu Knockout & Kiểm tra mã lỗi 404 khi xóa nhánh giải không tồn tại
+- **Mục tiêu:** Kiểm tra API lấy sơ đồ Knockout và chuẩn hóa mã `404 Not Found` khi reset nhánh giải không tồn tại.
+- **Phương thức & Endpoint:**
+  - `GET /api/tournaments/1/knockout/bracket`
+  - `DELETE /api/tournaments/999999/knockout` (Admin)
+- **Kết quả mong đợi:**
+  - `GET`: `200 OK`, trả về thông tin nhánh đấu Knockout của giải.
+  - `DELETE` (ID không tồn tại): `404 Not Found`.
 - **Trạng thái:** **PASS**
 
 ---
@@ -609,14 +663,15 @@ flowchart TD
 | Nhóm chức năng kiểm thử | Tổng số Test Cases | Số ca ĐẠT (PASS) | Số ca HỎNG (FAIL) | Tỷ lệ Đạt |
 | :--- | :---: | :---: | :---: | :---: |
 | **Phân hệ 1: Xác thực & Phân quyền (Auth/JWT)** | 7 | 7 | 0 | **100%** |
-| **Phân hệ 2: Quản lý Mùa giải & Đăng ký** | 9 | 9 | 0 | **100%** |
-| **Phân hệ 3: Quản lý Đội bóng & Cầu thủ** | 5 | 5 | 0 | **100%** |
+| **Phân hệ 2: Quản lý Mùa giải & Đăng ký** | 10 | 10 | 0 | **100%** |
+| **Phân hệ 3: Quản lý Đội bóng & Cầu thủ** | 8 | 8 | 0 | **100%** |
 | **Phân hệ 4: Lập lịch & Xung đột sân/đội** | 4 | 4 | 0 | **100%** |
-| **Phân hệ 5: Điều hành trận đấu & Sự kiện** | 3 | 3 | 0 | **100%** |
+| **Phân hệ 5: Điều hành trận đấu & Sự kiện** | 4 | 4 | 0 | **100%** |
 | **Phân hệ 6: Bảng xếp hạng & Thống kê** | 3 | 3 | 0 | **100%** |
 | **Phân hệ 7: Truy vấn OData v8 nâng cao** | 5 | 5 | 0 | **100%** |
-| **Phân hệ 8: Giao diện WebClient MVC** | 6 | 6 | 0 | **100%** |
-| **TỔNG CỘNG TOÀN HỆ THỐNG** | **42** | **42** | **0** | **100%** |
+| **Phân hệ 8: Giao diện WebClient MVC** | 7 | 7 | 0 | **100%** |
+| **Phân hệ 9: Vòng Knockout (Bracket & Reset)** | 1 | 1 | 0 | **100%** |
+| **TỔNG CỘNG TOÀN HỆ THỐNG** | **49** | **49** | **0** | **100%** |
 
 ---
 
