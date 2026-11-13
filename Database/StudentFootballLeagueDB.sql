@@ -271,7 +271,8 @@ INSERT INTO Tournaments (Name, Season, StartDate, EndDate, RegistrationDeadline,
 VALUES 
 (N'Giải Bóng đá Sinh viên FPT Cup Mùa Thu 2026', 'Fall 2026', '2026-11-01', '2026-11-30', '2026-10-28 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Ongoing'),
 (N'Giải Bóng đá Tân Sinh viên Mở rộng Mùa Xuân 2027', 'Spring 2027', '2027-03-01', '2027-03-31', '2027-02-20 23:59:59', 16, 4, 8, 1, NULL, 7, 15, 'Registering'),
-(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 2, 4, 1, 1, 7, 15, 'Completed');
+(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 2, 4, 1, 1, 7, 15, 'Completed'),
+(N'Giải Bóng Đá Vô Địch Mini Cup FPT 2027', 'Summer 2027', '2027-06-01', '2027-06-30', '2027-05-25 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Registering');
 GO
 
 -- 4. Players (56 cầu thủ - mỗi đội 7 cầu thủ đủ điều kiện thi đấu)
@@ -368,7 +369,16 @@ VALUES
 (3, 5, 'Group B', 'Approved'),
 (3, 6, 'Group B', 'Approved'),
 (3, 7, 'Group B', 'Approved'),
-(3, 8, 'Group B', 'Approved');
+(3, 8, 'Group B', 'Approved'),
+-- Giải 4 (Mini Cup FPT 2027 - Demo Setup: 4 đội Bảng A, 3 đội Bảng B, 1 đội Pending để demo duyệt vào Bảng B)
+(4, 1, 'Group A', 'Approved'),
+(4, 2, 'Group A', 'Approved'),
+(4, 3, 'Group A', 'Approved'),
+(4, 4, 'Group A', 'Approved'),
+(4, 5, 'Group B', 'Approved'),
+(4, 6, 'Group B', 'Approved'),
+(4, 7, 'Group B', 'Approved'),
+(4, 8, NULL, 'Pending');
 GO
 
 -- 6. Matches
