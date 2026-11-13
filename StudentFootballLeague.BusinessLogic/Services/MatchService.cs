@@ -170,34 +170,11 @@ namespace StudentFootballLeague.BusinessLogic.Services
 
             bool isKnockout = string.Equals(match.Stage, "Knockout", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(match.GroupName);
 
-            if (isKnockout && dto.Status == "Completed" && dto.HomeScore == dto.AwayScore)
-            {
-                if (!dto.HomePenalty.HasValue || !dto.AwayPenalty.HasValue || dto.HomePenalty.Value < 0 || dto.AwayPenalty.Value < 0 || dto.HomePenalty.Value == dto.AwayPenalty.Value)
-                {
-                    return (false, "Trận vòng Knockout có tỷ số chính thức hòa bắt buộc phải nhập tỷ số luân lưu (Penalty) phân định thắng thua.");
-                }
-            }
-
-            match.HomeScore = dto.HomeScore;
-            match.AwayScore = dto.AwayScore;
-            match.HomePenalty = (isKnockout && dto.HomeScore == dto.AwayScore) ? dto.HomePenalty : null;
-            match.AwayPenalty = (isKnockout && dto.HomeScore == dto.AwayScore) ? dto.AwayPenalty : null;
-            match.Status = dto.Status;
-
-            if (isKnockout)
-            {
-                var syncResult = await _knockoutService.AdvanceWinnerOrSyncAsync(match);
-                if (!syncResult.IsSuccess)
-                {
-                    return (false, syncResult.ErrorMessage);
-                }
-            }
-
-            // Chỉ cập nhật lại danh sách sự kiện nếu client truyền danh sách sự kiện (dto.Events != null).
-            // Nếu dto.Events == null, giữ nguyên toàn bộ sự kiện hiện có của trận đấu.
+            // 1. Cập nhật danh sách sự kiện nếu client truyền lên (dto.Events != null)
             if (dto.Events != null)
             {
                 _context.MatchEvents.RemoveRange(match.Events);
+                match.Events.Clear(); // BẮT BUỘC clear danh sách in-memory để không bị đếm trùng các sự kiện cũ khi tính tỷ số
 
                 foreach (var ev in dto.Events)
                 {
@@ -211,6 +188,58 @@ namespace StudentFootballLeague.BusinessLogic.Services
                         Description = ev.Description
                     });
                 }
+
+                // Khi có danh sách sự kiện, tỷ số BẮT BUỘC tính 100% từ sự kiện (Single Source of Truth)
+                var (calculatedHomeScore, calculatedAwayScore) = CalculateScoreFromEvents(match.Events, match.HomeTeamId, match.AwayTeamId);
+                match.HomeScore = calculatedHomeScore;
+                match.AwayScore = calculatedAwayScore;
+            }
+            else
+            {
+                // dto.Events == null (Giữ nguyên sự kiện)
+                if (match.Events.Any())
+                {
+                    // Nếu trận đấu đã có sự kiện bàn thắng, tỷ số BẮT BUỘC đồng bộ 100% từ sự kiện
+                    var (calculatedHomeScore, calculatedAwayScore) = CalculateScoreFromEvents(match.Events, match.HomeTeamId, match.AwayTeamId);
+                    match.HomeScore = calculatedHomeScore;
+                    match.AwayScore = calculatedAwayScore;
+                }
+                else
+                {
+                    // Nếu trận đấu chưa phát sinh sự kiện nào: cho phép ghi nhận tỷ số từ DTO (hỗ trợ nhập nhanh / test)
+                    if (dto.Status == "Scheduled" && dto.HomeScore == 0 && dto.AwayScore == 0)
+                    {
+                        match.HomeScore = null;
+                        match.AwayScore = null;
+                    }
+                    else
+                    {
+                        match.HomeScore = dto.HomeScore;
+                        match.AwayScore = dto.AwayScore;
+                    }
+                }
+            }
+
+            // 3. Kiểm tra loạt sút luân lưu nếu trận Knockout kết thúc hòa
+            if (isKnockout && dto.Status == "Completed" && (match.HomeScore ?? 0) == (match.AwayScore ?? 0))
+            {
+                if (!dto.HomePenalty.HasValue || !dto.AwayPenalty.HasValue || dto.HomePenalty.Value < 0 || dto.AwayPenalty.Value < 0 || dto.HomePenalty.Value == dto.AwayPenalty.Value)
+                {
+                    return (false, "Trận vòng Knockout có tỷ số chính thức hòa bắt buộc phải nhập tỷ số luân lưu (Penalty) phân định thắng thua.");
+                }
+            }
+
+            match.HomePenalty = (isKnockout && (match.HomeScore ?? 0) == (match.AwayScore ?? 0)) ? dto.HomePenalty : null;
+            match.AwayPenalty = (isKnockout && (match.HomeScore ?? 0) == (match.AwayScore ?? 0)) ? dto.AwayPenalty : null;
+            match.Status = dto.Status;
+
+            if (isKnockout)
+            {
+                var syncResult = await _knockoutService.AdvanceWinnerOrSyncAsync(match);
+                if (!syncResult.IsSuccess)
+                {
+                    return (false, syncResult.ErrorMessage);
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -222,6 +251,21 @@ namespace StudentFootballLeague.BusinessLogic.Services
             }
 
             return (true, null);
+        }
+
+        public static (int HomeScore, int AwayScore) CalculateScoreFromEvents(IEnumerable<MatchEvent> events, int? homeTeamId, int? awayTeamId)
+        {
+            if (!homeTeamId.HasValue || !awayTeamId.HasValue) return (0, 0);
+
+            int homeScore = events.Count(e =>
+                (e.TeamId == homeTeamId.Value && (e.EventType == "Goal" || e.EventType == "PenaltyGoal")) ||
+                (e.TeamId == awayTeamId.Value && e.EventType == "OwnGoal"));
+
+            int awayScore = events.Count(e =>
+                (e.TeamId == awayTeamId.Value && (e.EventType == "Goal" || e.EventType == "PenaltyGoal")) ||
+                (e.TeamId == homeTeamId.Value && e.EventType == "OwnGoal"));
+
+            return (homeScore, awayScore);
         }
 
         private static int? InferKnockoutRound(string roundName)

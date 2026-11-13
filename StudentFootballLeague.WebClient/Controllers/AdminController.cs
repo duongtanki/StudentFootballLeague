@@ -215,31 +215,37 @@ namespace StudentFootballLeague.WebClient.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateResult(int matchId, int homeScore, int awayScore, int? homePenalty, int? awayPenalty, string status)
+        [HttpPost]
+        public async Task<IActionResult> UpdateResult(int matchId, int? homePenalty, int? awayPenalty, string status)
         {
             var existingMatch = await _apiClient.GetAsync<MatchReadDto>($"api/matches/{matchId}");
+            if (existingMatch == null)
+            {
+                TempData["Error"] = "Không tìm thấy trận đấu.";
+                return RedirectToAction(nameof(Matches));
+            }
 
             var dto = new MatchResultUpdateDto
             {
-                HomeScore = homeScore,
-                AwayScore = awayScore,
+                HomeScore = existingMatch.HomeScore ?? 0,
+                AwayScore = existingMatch.AwayScore ?? 0,
                 HomePenalty = homePenalty,
                 AwayPenalty = awayPenalty,
                 Status = status,
-                Events = null // Không can thiệp hay xóa danh sách sự kiện bàn thắng / thẻ phạt hiện có
+                Events = null // Backend tự động tính toán lại tỉ số từ danh sách events và bảo toàn events
             };
 
             var result = await _apiClient.PutAsync($"api/matches/{matchId}/result", dto);
             if (!result.IsSuccess)
             {
-                TempData["Error"] = result.ErrorMessage ?? "Cập nhật tỷ số thất bại.";
+                TempData["Error"] = result.ErrorMessage ?? "Cập nhật trạng thái trận đấu thất bại.";
             }
             else
             {
                 var isKnockout = existingMatch != null && (existingMatch.Stage == "Knockout" || string.IsNullOrEmpty(existingMatch.GroupName));
                 TempData["Success"] = isKnockout && status == "Completed"
                     ? "Cập nhật kết quả Knockout thành công! Đội thắng đã được tự động đẩy vào vòng tiếp theo."
-                    : "Cập nhật tỷ số trận đấu thành công! Bảng xếp hạng đã được tự động tính toán lại.";
+                    : "Cập nhật trạng thái trận đấu thành công! Tỷ số và Bảng xếp hạng đã được tự động đồng bộ.";
             }
 
             return RedirectToAction(nameof(Matches));
@@ -255,31 +261,16 @@ namespace StudentFootballLeague.WebClient.Controllers
                 return RedirectToAction(nameof(Matches));
             }
 
-            var dto = new MatchResultUpdateDto
+            var eventList = match.Events.ConvertAll(e => new MatchEventInputDto
             {
-                HomeScore = match.HomeScore ?? 0,
-                AwayScore = match.AwayScore ?? 0,
-                HomePenalty = match.HomePenalty,
-                AwayPenalty = match.AwayPenalty,
-                Status = match.Status == "Scheduled" ? "InProgress" : match.Status,
-                Events = match.Events.ConvertAll(e => new MatchEventInputDto
-                {
-                    TeamId = e.TeamId,
-                    PlayerId = e.PlayerId,
-                    EventType = e.EventType,
-                    Minute = e.Minute,
-                    Description = e.Description
-                })
-            };
+                TeamId = e.TeamId,
+                PlayerId = e.PlayerId,
+                EventType = e.EventType,
+                Minute = e.Minute,
+                Description = e.Description
+            });
 
-            // Nếu là bàn thắng, tự động tăng tỷ số
-            if (eventType == "Goal" || eventType == "PenaltyGoal")
-            {
-                if (teamId == match.HomeTeamId) dto.HomeScore++;
-                else if (teamId == match.AwayTeamId) dto.AwayScore++;
-            }
-
-            dto.Events.Add(new MatchEventInputDto
+            eventList.Add(new MatchEventInputDto
             {
                 TeamId = teamId,
                 PlayerId = playerId,
@@ -288,6 +279,16 @@ namespace StudentFootballLeague.WebClient.Controllers
                 Description = description
             });
 
+            var dto = new MatchResultUpdateDto
+            {
+                HomeScore = 0, // Backend sẽ tự động tính toán chính xác 100% dựa trên eventList
+                AwayScore = 0,
+                HomePenalty = match.HomePenalty,
+                AwayPenalty = match.AwayPenalty,
+                Status = match.Status == "Scheduled" ? "InProgress" : match.Status,
+                Events = eventList
+            };
+
             var result = await _apiClient.PutAsync($"api/matches/{matchId}/result", dto);
             if (!result.IsSuccess)
             {
@@ -295,7 +296,7 @@ namespace StudentFootballLeague.WebClient.Controllers
             }
             else
             {
-                TempData["Success"] = $"Đã ghi nhận sự kiện ({eventType} ở phút {minute}) và cập nhật Bảng xếp hạng!";
+                TempData["Success"] = $"Đã ghi nhận sự kiện ({eventType} ở phút {minute})! Tỷ số và Bảng xếp hạng đã được cập nhật tự động.";
             }
 
             return RedirectToAction(nameof(Matches));

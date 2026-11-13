@@ -109,11 +109,11 @@
                                 <div class="d-flex justify-content-center gap-1 flex-wrap">
                                     @if (hasBothTeams)
                                     {
-                                        <button type="button" class="btn btn-sm btn-apex-primary px-2" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật tỷ số">
-                                            <i class="bi bi-pencil-square me-1"></i>Tỷ số
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-apex-mint px-2" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Thêm / Xóa sự kiện">
+                                        <button type="button" class="btn btn-sm btn-apex-mint px-2" data-bs-toggle="modal" data-bs-target="#eventModal-@m.MatchId" title="Điều hành sự kiện &amp; ghi nhận bàn thắng / thẻ phạt">
                                             <i class="bi bi-flag-fill me-1"></i>Sự kiện (@(m.Events?.Count ?? 0))
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-apex-primary px-2" data-bs-toggle="modal" data-bs-target="#scoreModal-@m.MatchId" title="Cập nhật trạng thái / Chốt kết quả">
+                                            <i class="bi bi-check2-circle me-1"></i>Trạng thái
                                         </button>
                                     }
                                     else
@@ -200,7 +200,7 @@
 
         if (hasBothTeams)
         {
-            <!-- Modal Cập nhật Tỷ số -->
+            <!-- Modal Cập nhật Trạng thái / Chốt kết quả -->
             <div class="modal fade apex-modal" id="scoreModal-@m.MatchId" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content text-start">
@@ -208,33 +208,29 @@
                             <input type="hidden" name="matchId" value="@m.MatchId" />
                             <div class="modal-header">
                                 <h5 class="modal-title apex-display fw-bold fs-4">
-                                    <i class="bi bi-pencil-square me-2" style="color: var(--apex-crimson);"></i>CẬP NHẬT KẾT QUẢ TRẬN #@m.MatchId
+                                    <i class="bi bi-check2-circle me-2" style="color: var(--apex-crimson);"></i>TRẠNG THÁI &amp; KẾT QUẢ TRẬN #@m.MatchId
                                 </h5>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body p-4">
+                                <!-- Bảng tỷ số trực tiếp (Read-only - Tính toán 100% từ danh sách bàn thắng) -->
                                 <div class="p-3 rounded-2 text-center mb-3" style="background: var(--apex-lowest); border: 1px solid var(--apex-border);">
-                                    <strong class="text-white">@m.HomeTeamName</strong>
-                                    <span class="text-muted mx-2">vs</span>
-                                    <strong class="text-white">@m.AwayTeamName</strong>
-                                </div>
-                                <div class="row g-3 mb-3">
-                                    <div class="col-6">
-                                        <label class="form-label small apex-label-caps">Bàn thắng (@m.HomeTeamName)</label>
-                                        <input type="number" name="homeScore" id="homeScore-@m.MatchId" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.HomeScore ?? 0)" min="0" max="50" required oninput="togglePenaltyBox(@m.MatchId, @(isKnockout ? "true" : "false"))" />
+                                    <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                                        <span class="fw-bold text-white fs-5 flex-fill text-start text-truncate" title="@m.HomeTeamName">@m.HomeTeamName</span>
+                                        <span class="fs-2 fw-bold apex-tabular px-3 py-1 rounded bg-black border text-warning mx-2">@(m.HomeScore ?? 0) - @(m.AwayScore ?? 0)</span>
+                                        <span class="fw-bold text-white fs-5 flex-fill text-end text-truncate" title="@m.AwayTeamName">@m.AwayTeamName</span>
                                     </div>
-                                    <div class="col-6">
-                                        <label class="form-label small apex-label-caps">Bàn thắng (@m.AwayTeamName)</label>
-                                        <input type="number" name="awayScore" id="awayScore-@m.MatchId" class="form-control text-center fs-3 fw-bold apex-tabular" value="@(m.AwayScore ?? 0)" min="0" max="50" required oninput="togglePenaltyBox(@m.MatchId, @(isKnockout ? "true" : "false"))" />
+                                    <div class="small text-muted">
+                                        <i class="bi bi-info-circle me-1" style="color: var(--apex-mint);"></i>Tỷ số được hệ thống tự động tính từ các sự kiện bàn thắng.
                                     </div>
                                 </div>
 
                                 @if (isKnockout)
                                 {
-                                    var showPenInit = (m.HomeScore ?? 0) == (m.AwayScore ?? 0);
-                                    <div id="penaltyBox-@m.MatchId" class="p-3 rounded-2 mb-3 @(showPenInit ? "" : "d-none")" style="background: rgba(121, 0, 226, 0.14); border: 1px solid rgba(216, 185, 255, 0.35);">
+                                    var isTied = (m.HomeScore ?? 0) == (m.AwayScore ?? 0);
+                                    <div id="penaltyBox-@m.MatchId" class="p-3 rounded-2 mb-3 @(isTied ? "" : "d-none")" style="background: rgba(121, 0, 226, 0.14); border: 1px solid rgba(216, 185, 255, 0.35);">
                                         <div class="apex-label-caps mb-2" style="color: var(--apex-violet-soft);">
-                                            <i class="bi bi-bullseye me-1"></i>Tỷ số Luân lưu (Bắt buộc nếu hòa khi kết thúc)
+                                            <i class="bi bi-bullseye me-1"></i>Tỷ số Luân lưu Penalty (Bắt buộc nếu hòa khi kết thúc)
                                         </div>
                                         <div class="row g-3">
                                             <div class="col-6">
@@ -252,6 +248,7 @@
                                 <div class="mb-0">
                                     <label class="form-label small apex-label-caps">Trạng thái trận đấu</label>
                                     <select name="status" class="form-select">
+                                        <option value="Scheduled" selected="@(m.Status == "Scheduled" ? "selected" : null)">Chưa thi đấu (Scheduled)</option>
                                         <option value="InProgress" selected="@(m.Status == "InProgress" ? "selected" : null)">Đang thi đấu (InProgress)</option>
                                         <option value="Completed" selected="@(m.Status == "Completed" ? "selected" : null)">@(isKnockout ? "Kết thúc (Completed - Đẩy đội thắng lên vòng sau)" : "Kết thúc (Completed - Tự động tính điểm BXH)")</option>
                                         <option value="Postponed" selected="@(m.Status == "Postponed" ? "selected" : null)">Tạm hoãn (Postponed)</option>
@@ -260,7 +257,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-apex-ghost" data-bs-dismiss="modal">Hủy</button>
-                                <button type="submit" class="btn btn-apex-mint px-4">@(isKnockout ? "Lưu kết quả Knockout" : "Lưu tỷ số & Đồng bộ BXH")</button>
+                                <button type="submit" class="btn btn-apex-mint px-4">Lưu trạng thái trận đấu</button>
                             </div>
                         </form>
                     </div>
@@ -273,11 +270,29 @@
                     <div class="modal-content text-start">
                         <div class="modal-header">
                             <h5 class="modal-title apex-display fw-bold fs-4">
-                                <i class="bi bi-flag-fill me-2" style="color: var(--apex-mint);"></i>QUẢN LÝ SỰ KIỆN TRẬN #@m.MatchId (@m.HomeTeamName vs @m.AwayTeamName)
+                                <i class="bi bi-flag-fill me-2" style="color: var(--apex-mint);"></i>ĐIỀU HÀNH SỰ KIỆN TRẬN #@m.MatchId (@m.HomeTeamName vs @m.AwayTeamName)
                             </h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body p-4">
+                            <!-- Bảng tỷ số trực tiếp Header -->
+                            <div class="p-3 rounded-2 text-center mb-4" style="background: var(--apex-lowest); border: 1px solid var(--apex-border);">
+                                <div class="d-flex justify-content-between align-items-center px-2">
+                                    <div class="text-start flex-fill text-truncate" title="@m.HomeTeamName">
+                                        <div class="fw-bold text-white fs-5">@m.HomeTeamName</div>
+                                        <small class="text-muted">Chủ nhà</small>
+                                    </div>
+                                    <div class="text-center mx-3">
+                                        <span class="fs-2 fw-bold apex-tabular px-3 py-1 rounded bg-black border text-warning">@(m.HomeScore ?? 0) - @(m.AwayScore ?? 0)</span>
+                                        <div class="small mt-1 text-muted">Tỷ số trực tiếp</div>
+                                    </div>
+                                    <div class="text-end flex-fill text-truncate" title="@m.AwayTeamName">
+                                        <div class="fw-bold text-white fs-5">@m.AwayTeamName</div>
+                                        <small class="text-muted">Đội khách</small>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Danh sách sự kiện đã ghi nhận -->
                             <div class="mb-4">
                                 <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom" style="border-color: var(--apex-border) !important;">
@@ -306,6 +321,10 @@
                                                             @if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
                                                             {
                                                                 <span class="apex-badge apex-badge--live">Bàn thắng</span>
+                                                            }
+                                                            else if (ev.EventType == "OwnGoal")
+                                                            {
+                                                                <span class="apex-badge apex-badge--cancelled">Phản lưới</span>
                                                             }
                                                             else if (ev.EventType == "YellowCard")
                                                             {
@@ -365,6 +384,7 @@
                                         <select name="eventType" class="form-select" required>
                                             <option value="Goal">Bàn thắng (Goal)</option>
                                             <option value="PenaltyGoal">Phạt đền (PenaltyGoal)</option>
+                                            <option value="OwnGoal">Phản lưới nhà (OwnGoal - Tính cho đối thủ)</option>
                                             <option value="YellowCard">Thẻ vàng (YellowCard)</option>
                                             <option value="RedCard">Thẻ đỏ (RedCard)</option>
                                         </select>

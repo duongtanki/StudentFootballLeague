@@ -281,28 +281,24 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Không tìm thấy trận đấu liên quan." });
             }
 
-            // Nếu là bàn thắng hoặc phản lưới, tự động giảm tỷ số tương ứng
-            if (ev.EventType == "Goal" || ev.EventType == "PenaltyGoal")
+            _context.MatchEvents.Remove(ev);
+
+            // Tự động tính toán lại tỷ số chuẩn xác 100% từ danh sách sự kiện còn lại (Single Source of Truth)
+            var remainingEvents = await _context.MatchEvents
+                .Where(e => e.MatchId == matchId && e.EventId != eventId)
+                .ToListAsync();
+
+            var (homeScore, awayScore) = MatchService.CalculateScoreFromEvents(remainingEvents, match.HomeTeamId, match.AwayTeamId);
+
+            if (match.Status == "Scheduled" && !remainingEvents.Any())
             {
-                if (ev.TeamId == match.HomeTeamId && (match.HomeScore ?? 0) > 0)
-                {
-                    match.HomeScore--;
-                }
-                else if (ev.TeamId == match.AwayTeamId && (match.AwayScore ?? 0) > 0)
-                {
-                    match.AwayScore--;
-                }
+                match.HomeScore = null;
+                match.AwayScore = null;
             }
-            else if (ev.EventType == "OwnGoal")
+            else
             {
-                if (ev.TeamId == match.HomeTeamId && (match.AwayScore ?? 0) > 0)
-                {
-                    match.AwayScore--;
-                }
-                else if (ev.TeamId == match.AwayTeamId && (match.HomeScore ?? 0) > 0)
-                {
-                    match.HomeScore--;
-                }
+                match.HomeScore = homeScore;
+                match.AwayScore = awayScore;
             }
 
             if (match.Stage == "Knockout" && match.Status == "Completed")
@@ -314,7 +310,6 @@ namespace StudentFootballLeague.API.Controllers
                 }
             }
 
-            _context.MatchEvents.Remove(ev);
             await _context.SaveChangesAsync();
 
             // Chỉ tự động tính lại Bảng xếp hạng đối với trận vòng bảng

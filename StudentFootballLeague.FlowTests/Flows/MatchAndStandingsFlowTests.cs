@@ -176,4 +176,92 @@ public class MatchAndStandingsFlowTests
         Assert.Equal(1, updatedStandings!.First(s => s.TeamId == team1.TeamId).Points);
         Assert.Equal(1, updatedStandings.First(s => s.TeamId == team2.TeamId).Points);
     }
+
+    [Fact]
+    public async Task Event_Driven_Score_Calculation_And_OwnGoal_Flow_Works()
+    {
+        using var factory = new CustomWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var admin = await FlowTestHelper.LoginAsync(client, "admin@fpt.edu.vn");
+        var referee = await FlowTestHelper.LoginAsync(client, "referee1@fpt.edu.vn");
+
+        var tourId = await FlowTestHelper.CreateTournamentAsync(client, admin.AccessToken, "Event Driven Score Cup");
+
+        var teamA = await FlowTestHelper.CreateTeamWithRosterAsync(client, "TEAM_A", 4001, 7);
+        var teamB = await FlowTestHelper.CreateTeamWithRosterAsync(client, "TEAM_B", 4002, 7);
+
+        await FlowTestHelper.RegisterAndApproveTeamAsync(client, teamA.Token, admin.AccessToken, tourId, "Group A");
+        await FlowTestHelper.RegisterAndApproveTeamAsync(client, teamB.Token, admin.AccessToken, tourId, "Group A");
+
+        client.SetBearerToken(admin.AccessToken);
+        var mResp = await client.PostAsJsonAsync("/api/matches", new MatchScheduleDto
+        {
+            TournamentId = tourId,
+            GroupName = "Group A",
+            RoundName = "Vòng Bảng - Lượt 1",
+            HomeTeamId = teamA.TeamId,
+            AwayTeamId = teamB.TeamId,
+            MatchDateTime = new DateTime(2026, 11, 25, 14, 0, 0),
+            PitchName = "Sân 3",
+            RefereeId = referee.UserId
+        });
+        Assert.Equal(HttpStatusCode.Created, mResp.StatusCode);
+        var match = await mResp.Content.ReadFromJsonAsync<MatchReadDto>(FlowTestHelper.JsonOptions);
+        Assert.NotNull(match);
+
+        // 1. Trọng tài cập nhật danh sách sự kiện:
+        // - Team A ghi 1 bàn (Goal)
+        // - Team A phản lưới nhà 1 bàn (OwnGoal) -> tính cho Team B
+        // - Team B ghi 1 bàn (PenaltyGoal) -> tính cho Team B
+        // -> Kết quả thực tế phải là: Team A 1 - 2 Team B (dù client có gửi HomeScore 0 AwayScore 0 thì server vẫn tự tính ra 1-2)
+        client.SetBearerToken(referee.AccessToken);
+        var resultResp = await client.PutAsJsonAsync($"/api/matches/{match!.MatchId}/result", new MatchResultUpdateDto
+        {
+            HomeScore = 0, // Server sẽ tự động tính từ events
+            AwayScore = 0,
+            Status = "InProgress",
+            Events = new List<MatchEventInputDto>
+            {
+                new() { TeamId = teamA.TeamId, PlayerId = teamA.PlayerIds[0], EventType = "Goal", Minute = 10 },
+                new() { TeamId = teamA.TeamId, PlayerId = teamA.PlayerIds[1], EventType = "OwnGoal", Minute = 30 },
+                new() { TeamId = teamB.TeamId, PlayerId = teamB.PlayerIds[0], EventType = "PenaltyGoal", Minute = 65 }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, resultResp.StatusCode);
+
+        var mDetail = await client.GetFromJsonAsync<MatchReadDto>($"/api/matches/{match.MatchId}", FlowTestHelper.JsonOptions);
+        Assert.NotNull(mDetail);
+        Assert.Equal(1, mDetail!.HomeScore); // Team A có 1 bàn thắng
+        Assert.Equal(2, mDetail.AwayScore);  // Team B có 1 pen + 1 do Team A phản lưới
+
+        // 2. Cập nhật trạng thái trận đấu thành Completed với Events = null
+        // Server phải tiếp tục bảo toàn sự kiện và giữ vững tỷ số 1 - 2
+        var statusResp = await client.PutAsJsonAsync($"/api/matches/{match.MatchId}/result", new MatchResultUpdateDto
+        {
+            HomeScore = 0, // Dù client có gửi số nào, server vẫn bắt buộc tính theo events là 1-2
+            AwayScore = 0,
+            Status = "Completed",
+            Events = null
+        });
+        Assert.Equal(HttpStatusCode.OK, statusResp.StatusCode);
+
+        var completedDetail = await client.GetFromJsonAsync<MatchReadDto>($"/api/matches/{match.MatchId}", FlowTestHelper.JsonOptions);
+        Assert.NotNull(completedDetail);
+        Assert.Equal("Completed", completedDetail!.Status);
+        Assert.Equal(1, completedDetail.HomeScore);
+        Assert.Equal(2, completedDetail.AwayScore);
+        Assert.Equal(3, completedDetail.Events.Count);
+
+        // 3. Xóa sự kiện phản lưới nhà (OwnGoal) -> tỷ số Team B giảm từ 2 về 1 (tỉ số thành 1 - 1)
+        var ownGoalEvent = completedDetail.Events.First(e => e.EventType == "OwnGoal");
+        var delResp = await client.DeleteAsync($"/api/matches/{match.MatchId}/events/{ownGoalEvent.EventId}");
+        Assert.Equal(HttpStatusCode.OK, delResp.StatusCode);
+
+        var finalDetail = await client.GetFromJsonAsync<MatchReadDto>($"/api/matches/{match.MatchId}", FlowTestHelper.JsonOptions);
+        Assert.NotNull(finalDetail);
+        Assert.Equal(1, finalDetail!.HomeScore);
+        Assert.Equal(1, finalDetail.AwayScore);
+        Assert.Equal(2, finalDetail.Events.Count);
+    }
 }
