@@ -218,14 +218,6 @@ namespace StudentFootballLeague.WebClient.Controllers
         public async Task<IActionResult> UpdateResult(int matchId, int homeScore, int awayScore, int? homePenalty, int? awayPenalty, string status)
         {
             var existingMatch = await _apiClient.GetAsync<MatchReadDto>($"api/matches/{matchId}");
-            var preservedEvents = existingMatch?.Events.ConvertAll(e => new MatchEventInputDto
-            {
-                TeamId = e.TeamId,
-                PlayerId = e.PlayerId,
-                EventType = e.EventType,
-                Minute = e.Minute,
-                Description = e.Description
-            }) ?? new List<MatchEventInputDto>();
 
             var dto = new MatchResultUpdateDto
             {
@@ -234,7 +226,7 @@ namespace StudentFootballLeague.WebClient.Controllers
                 HomePenalty = homePenalty,
                 AwayPenalty = awayPenalty,
                 Status = status,
-                Events = preservedEvents
+                Events = null // Không can thiệp hay xóa danh sách sự kiện bàn thắng / thẻ phạt hiện có
             };
 
             var result = await _apiClient.PutAsync($"api/matches/{matchId}/result", dto);
@@ -269,7 +261,7 @@ namespace StudentFootballLeague.WebClient.Controllers
                 AwayScore = match.AwayScore ?? 0,
                 HomePenalty = match.HomePenalty,
                 AwayPenalty = match.AwayPenalty,
-                Status = match.Status,
+                Status = match.Status == "Scheduled" ? "InProgress" : match.Status,
                 Events = match.Events.ConvertAll(e => new MatchEventInputDto
                 {
                     TeamId = e.TeamId,

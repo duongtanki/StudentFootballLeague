@@ -63,10 +63,10 @@ namespace StudentFootballLeague.BusinessLogic.DTOs
         public int? AwayPenalty { get; set; }
 
         [Required]
-        [RegularExpression(@"^(InProgress|Completed|Postponed|Cancelled)$")]
+        [RegularExpression(@"^(Scheduled|InProgress|Completed|Postponed|Cancelled)$")]
         public string Status { get; set; } = "Completed";
 
-        public List<MatchEventInputDto> Events { get; set; } = new List<MatchEventInputDto>();
+        public List<MatchEventInputDto>? Events { get; set; } = null;
     }
 
     public class MatchEventInputDto
