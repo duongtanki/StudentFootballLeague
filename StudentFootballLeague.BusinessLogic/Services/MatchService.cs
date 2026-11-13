@@ -193,11 +193,12 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 }
             }
 
-            // Xóa các sự kiện cũ nếu có để ghi lại chính xác
-            _context.MatchEvents.RemoveRange(match.Events);
-
-            if (dto.Events != null && dto.Events.Count > 0)
+            // Chỉ cập nhật lại danh sách sự kiện nếu client truyền danh sách sự kiện (dto.Events != null).
+            // Nếu dto.Events == null, giữ nguyên toàn bộ sự kiện hiện có của trận đấu.
+            if (dto.Events != null)
             {
+                _context.MatchEvents.RemoveRange(match.Events);
+
                 foreach (var ev in dto.Events)
                 {
                     match.Events.Add(new MatchEvent
