@@ -24,8 +24,9 @@ IF OBJECT_ID('dbo.MatchEvents', 'U') IS NOT NULL DROP TABLE dbo.MatchEvents;
 IF OBJECT_ID('dbo.Matches', 'U') IS NOT NULL DROP TABLE dbo.Matches;
 IF OBJECT_ID('dbo.TeamRegistrations', 'U') IS NOT NULL DROP TABLE dbo.TeamRegistrations;
 IF OBJECT_ID('dbo.Players', 'U') IS NOT NULL DROP TABLE dbo.Players;
-IF OBJECT_ID('dbo.Teams', 'U') IS NOT NULL DROP TABLE dbo.Teams;
+IF OBJECT_ID('dbo.FK_Tournaments_ChampionTeam', 'F') IS NOT NULL ALTER TABLE dbo.Tournaments DROP CONSTRAINT FK_Tournaments_ChampionTeam;
 IF OBJECT_ID('dbo.Tournaments', 'U') IS NOT NULL DROP TABLE dbo.Tournaments;
+IF OBJECT_ID('dbo.Teams', 'U') IS NOT NULL DROP TABLE dbo.Teams;
 IF OBJECT_ID('dbo.Users', 'U') IS NOT NULL DROP TABLE dbo.Users;
 GO
 
@@ -71,7 +72,6 @@ CREATE TABLE Tournaments (
     MaxPlayersPerTeam INT NOT NULL CONSTRAINT DF_Tournaments_MaxPlayers DEFAULT 15,
     Status VARCHAR(30) NOT NULL CONSTRAINT DF_Tournaments_Status DEFAULT 'Registering',
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Tournaments_CreatedAt DEFAULT GETDATE(),
-    CONSTRAINT FK_Tournaments_ChampionTeam FOREIGN KEY (ChampionTeamId) REFERENCES Teams(TeamId),
     CONSTRAINT CK_Tournaments_Dates CHECK (EndDate > StartDate AND RegistrationDeadline <= StartDate),
     CONSTRAINT CK_Tournaments_Status CHECK (Status IN ('Registering', 'Ongoing', 'Completed', 'Cancelled'))
 );
@@ -89,6 +89,10 @@ CREATE TABLE Teams (
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Teams_CreatedAt DEFAULT GETDATE(),
     CONSTRAINT FK_Teams_Users FOREIGN KEY (ManagerId) REFERENCES Users(UserId)
 );
+GO
+
+-- Thêm khóa ngoại ChampionTeamId của Tournaments tham chiếu tới Teams sau khi Teams đã được tạo
+ALTER TABLE Tournaments ADD CONSTRAINT FK_Tournaments_ChampionTeam FOREIGN KEY (ChampionTeamId) REFERENCES Teams(TeamId);
 GO
 
 -- =====================================================================
@@ -249,15 +253,7 @@ VALUES
 (N'Mai Thương Mại EC', 'captain.ec@fpt.edu.vn', '$2a$11$26ZvT9ABSUZnr.CO0VU9ROaqWS9Q4ZhcLNe5H/rZnu.Nt3y1tlFzm', '0988888888', 'HS180008', 'TeamManager', 1);
 GO
 
--- 2. Tournaments
-INSERT INTO Tournaments (Name, Season, StartDate, EndDate, RegistrationDeadline, MaxTeams, GroupCount, KnockoutTeamCount, HasThirdPlaceMatch, ChampionTeamId, MinPlayersPerTeam, MaxPlayersPerTeam, Status)
-VALUES 
-(N'Giải Bóng đá Sinh viên FPT Cup Mùa Thu 2026', 'Fall 2026', '2026-11-01', '2026-11-30', '2026-10-28 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Ongoing'),
-(N'Giải Bóng đá Tân Sinh viên Mở rộng Mùa Xuân 2027', 'Spring 2027', '2027-03-01', '2027-03-31', '2027-02-20 23:59:59', 16, 4, 8, 1, NULL, 7, 15, 'Registering'),
-(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 2, 4, 1, 1, 7, 15, 'Completed');
-GO
-
--- 3. Teams (8 đội thuộc các chuyên ngành)
+-- 2. Teams (8 đội thuộc các chuyên ngành - Đưa lên trước Tournaments vì Tournaments có ChampionTeamId)
 INSERT INTO Teams (TeamName, FacultyOrClub, ManagerId, HomeKitColor)
 VALUES 
 (N'FC Kỹ Thuật Phần Mềm K18', N'Khoa Kỹ thuật Phần mềm (SE)', 3, N'Đỏ - Trắng'),
@@ -268,6 +264,15 @@ VALUES
 (N'FC Truyền Thông MC', N'Khoa Truyền thông Đa phương tiện (MC)', 9, N'Cam - Đen'),
 (N'FC Ngôn Ngữ Nhật JP', N'Khoa Ngôn ngữ Nhật (JP)', 10, N'Trắng - Đỏ'),
 (N'FC Thương Mại Điện Tử EC', N'Khoa Thương mại Điện tử (EC)', 11, N'Xanh Lá - Trắng');
+GO
+
+-- 3. Tournaments
+INSERT INTO Tournaments (Name, Season, StartDate, EndDate, RegistrationDeadline, MaxTeams, GroupCount, KnockoutTeamCount, HasThirdPlaceMatch, ChampionTeamId, MinPlayersPerTeam, MaxPlayersPerTeam, Status)
+VALUES 
+(N'Giải Bóng đá Sinh viên FPT Cup Mùa Thu 2026', 'Fall 2026', '2026-11-01', '2026-11-30', '2026-10-28 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Ongoing'),
+(N'Giải Bóng đá Tân Sinh viên Mở rộng Mùa Xuân 2027', 'Spring 2027', '2027-03-01', '2027-03-31', '2027-02-20 23:59:59', 16, 4, 8, 1, NULL, 7, 15, 'Registering'),
+(N'Giải Bóng đá Campus Cup Mùa Hè 2026', 'Summer 2026', '2026-07-01', '2026-07-25', '2026-06-25 23:59:59', 8, 2, 4, 1, 1, 7, 15, 'Completed'),
+(N'Giải Bóng Đá Vô Địch Mini Cup FPT 2027', 'Summer 2027', '2027-06-01', '2027-06-30', '2027-05-25 23:59:59', 8, 2, 4, 1, NULL, 7, 15, 'Registering');
 GO
 
 -- 4. Players (56 cầu thủ - mỗi đội 7 cầu thủ đủ điều kiện thi đấu)
@@ -364,7 +369,16 @@ VALUES
 (3, 5, 'Group B', 'Approved'),
 (3, 6, 'Group B', 'Approved'),
 (3, 7, 'Group B', 'Approved'),
-(3, 8, 'Group B', 'Approved');
+(3, 8, 'Group B', 'Approved'),
+-- Giải 4 (Mini Cup FPT 2027 - Demo Setup: 4 đội Bảng A, 3 đội Bảng B, 1 đội Pending để demo duyệt vào Bảng B)
+(4, 1, 'Group A', 'Approved'),
+(4, 2, 'Group A', 'Approved'),
+(4, 3, 'Group A', 'Approved'),
+(4, 4, 'Group A', 'Approved'),
+(4, 5, 'Group B', 'Approved'),
+(4, 6, 'Group B', 'Approved'),
+(4, 7, 'Group B', 'Approved'),
+(4, 8, NULL, 'Pending');
 GO
 
 -- 6. Matches

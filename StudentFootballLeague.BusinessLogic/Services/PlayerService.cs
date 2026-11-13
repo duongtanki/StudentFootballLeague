@@ -119,6 +119,36 @@ namespace StudentFootballLeague.BusinessLogic.Services
                 return (false, 403, "Bạn không có quyền xóa cầu thủ này.");
             }
 
+            // Nếu đội đang tham gia giải chưa kết thúc/chưa hủy (Approved), bảo đảm đội vẫn đủ quân số tối thiểu và còn ít nhất 1 GK
+            var activeRegistrations = await _context.TeamRegistrations
+                .Include(r => r.Tournament)
+                .Where(r => r.TeamId == player.TeamId
+                    && r.ApprovalStatus == "Approved"
+                    && r.Tournament != null
+                    && r.Tournament.Status != "Completed"
+                    && r.Tournament.Status != "Cancelled")
+                .ToListAsync();
+
+            if (activeRegistrations.Any())
+            {
+                var remainingPlayers = await _context.Players
+                    .Where(p => p.TeamId == player.TeamId && p.IsActive && p.PlayerId != id)
+                    .ToListAsync();
+
+                foreach (var reg in activeRegistrations)
+                {
+                    if (remainingPlayers.Count < reg.Tournament!.MinPlayersPerTeam)
+                    {
+                        return (false, 400, $"Không thể xóa cầu thủ vì đội đang tham gia giải '{reg.Tournament.Name}' yêu cầu tối thiểu {reg.Tournament.MinPlayersPerTeam} cầu thủ.");
+                    }
+
+                    if (!remainingPlayers.Any(p => p.Position == "GK"))
+                    {
+                        return (false, 400, $"Không thể xóa Thủ môn (GK) duy nhất khi đội đang tham gia giải '{reg.Tournament.Name}'.");
+                    }
+                }
+            }
+
             // Xóa mềm để bảo toàn lịch sử sự kiện trận đấu (MatchEvents) và Vua phá lưới (V_PlayerStats)
             player.IsActive = false;
             await _context.SaveChangesAsync();

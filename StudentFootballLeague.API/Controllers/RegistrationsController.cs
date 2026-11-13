@@ -79,6 +79,11 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Không tìm thấy hồ sơ đăng ký." });
             }
 
+            if (reg.Tournament != null && reg.Tournament.Status == "Cancelled")
+            {
+                return BadRequest(new { message = "Không thể xét duyệt hồ sơ vì giải đấu đã bị hủy." });
+            }
+
             if (dto.Status == "Approved")
             {
                 if (reg.Team != null && reg.Tournament != null)

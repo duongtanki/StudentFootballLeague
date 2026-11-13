@@ -207,6 +207,11 @@ namespace StudentFootballLeague.API.Controllers
                 return NotFound(new { message = "Giải đấu không tồn tại." });
             }
 
+            if (tournament.Status == "Cancelled" || tournament.Status == "Completed")
+            {
+                return BadRequest(new { message = "Giải đấu đã bị hủy hoặc đã kết thúc, không thể đăng ký." });
+            }
+
             if (DateTime.UtcNow > tournament.RegistrationDeadline)
             {
                 return BadRequest(new { message = "Giải đấu đã hết hạn đăng ký." });
@@ -221,11 +226,16 @@ namespace StudentFootballLeague.API.Controllers
                 return BadRequest(new { message = "Bạn chưa tạo đội bóng. Hãy tạo đội bóng trước khi đăng ký giải." });
             }
 
-            // Kiểm tra điều kiện tối thiểu cầu thủ đang hoạt động
+            // Kiểm tra điều kiện số lượng cầu thủ đang hoạt động theo quy định của giải đấu
             var activePlayers = team.Players.Where(p => p.IsActive).ToList();
             if (activePlayers.Count < tournament.MinPlayersPerTeam)
             {
                 return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ. Giải đấu yêu cầu tối thiểu {tournament.MinPlayersPerTeam} cầu thủ." });
+            }
+
+            if (activePlayers.Count > tournament.MaxPlayersPerTeam)
+            {
+                return BadRequest(new { message = $"Đội bóng của bạn hiện có {activePlayers.Count} cầu thủ, vượt quá giới hạn tối đa {tournament.MaxPlayersPerTeam} cầu thủ của giải đấu." });
             }
 
             var hasGk = activePlayers.Any(p => p.Position == "GK");
@@ -303,6 +313,10 @@ namespace StudentFootballLeague.API.Controllers
             var result = await _knockoutService.ResetBracketAsync(id);
             if (!result.IsSuccess)
             {
+                if (result.ErrorMessage == "Không tìm thấy giải đấu.")
+                {
+                    return NotFound(new { message = result.ErrorMessage });
+                }
                 return BadRequest(new { message = result.ErrorMessage });
             }
             return Ok(new { message = "Đã xóa nhánh đấu Knockout thành công. Bạn có thể sắp xếp lại cặp đấu mới." });
